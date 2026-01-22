@@ -39,6 +39,9 @@ batch_size = config["batch_size"]
 iterations = config["iterations"]
 matrix_size = config.get("matrix_size", 512)
 
+# Debug output - print parameters received
+print(f"[DEBUG] model_id={model_id}, matrix_size={matrix_size}, iterations={iterations}, batch_size={batch_size}", file=sys.stderr)
+
 results = {
     "success": False,
     "error": None,
@@ -53,6 +56,7 @@ try:
     if model_id == "add_benchmark":
         # Simple element-wise addition benchmark (known to work on simulator)
         size = int(matrix_size)
+        print(f"[DEBUG] Running add_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0
         B = torch.ones(size, size) * 2.0
@@ -73,10 +77,36 @@ try:
         
         # Verify: 1 + 2 = 3
         output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "subtract_benchmark":
+        # Element-wise subtraction: A - B
+        size = int(matrix_size)
+        print(f"[DEBUG] Running subtract_benchmark with size={size}x{size}", file=sys.stderr)
+        
+        A = torch.ones(size, size) * 5.0
+        B = torch.ones(size, size) * 2.0
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        B_tt = ttnn.from_torch(B, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        C_tt = ttnn.subtract(A_tt, B_tt)
+        _ = ttnn.to_torch(C_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            C_tt = ttnn.subtract(A_tt, B_tt)
+            result = ttnn.to_torch(C_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: 5 - 2 = 3
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
         
     elif model_id == "multiply_benchmark":
         # Element-wise multiplication: A * B
         size = int(matrix_size)
+        print(f"[DEBUG] Running multiply_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 2.0
         B = torch.ones(size, size) * 3.0
@@ -101,6 +131,7 @@ try:
     elif model_id == "exp_benchmark":
         # Exponential function: exp(x)
         size = int(matrix_size)
+        print(f"[DEBUG] Running exp_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0  # exp(1) is about 2.718
         
@@ -119,10 +150,57 @@ try:
         
         # Verify: exp(1) is about 2.718
         output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "log_benchmark":
+        # Natural logarithm: ln(x)
+        size = int(matrix_size)
+        print(f"[DEBUG] Running log_benchmark with size={size}x{size}", file=sys.stderr)
+        
+        A = torch.ones(size, size) * 2.718281828  # ln(e) = 1
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.log(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.log(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: ln(e) is about 1.0
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "sqrt_benchmark":
+        # Square root: sqrt(x)
+        size = int(matrix_size)
+        print(f"[DEBUG] Running sqrt_benchmark with size={size}x{size}", file=sys.stderr)
+        
+        A = torch.ones(size, size) * 4.0  # sqrt(4) = 2
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.sqrt(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.sqrt(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: sqrt(4) = 2.0
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
         
     elif model_id == "relu_benchmark":
         # ReLU activation: max(0, x)
         size = int(matrix_size)
+        print(f"[DEBUG] Running relu_benchmark with size={size}x{size}", file=sys.stderr)
         
         # Mix of positive and negative values
         A = torch.randn(size, size)
@@ -146,6 +224,7 @@ try:
     elif model_id == "chain_benchmark":
         # Operation chain: Add -> ReLU -> Multiply
         size = int(matrix_size)
+        print(f"[DEBUG] Running chain_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.randn(size, size)  # Random values
         B = torch.ones(size, size) * 0.5  # Add 0.5
@@ -175,6 +254,7 @@ try:
     elif model_id == "sigmoid_benchmark":
         # Sigmoid activation: 1/(1+exp(-x))
         size = int(matrix_size)
+        print(f"[DEBUG] Running sigmoid_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.zeros(size, size)  # sigmoid(0) = 0.5
         
@@ -197,6 +277,7 @@ try:
     elif model_id == "gelu_benchmark":
         # GELU activation (used in transformers)
         size = int(matrix_size)
+        print(f"[DEBUG] Running gelu_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0  # gelu(1) is about 0.841
         
@@ -219,6 +300,7 @@ try:
     elif model_id == "tanh_benchmark":
         # Tanh activation
         size = int(matrix_size)
+        print(f"[DEBUG] Running tanh_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.zeros(size, size)  # tanh(0) = 0
         
@@ -236,6 +318,56 @@ try:
         end_time = time.perf_counter()
         
         # Verify: tanh(0) = 0
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "silu_benchmark":
+        # SiLU (Swish) activation: x * sigmoid(x)
+        size = int(matrix_size)
+        print(f"[DEBUG] Running silu_benchmark with size={size}x{size}", file=sys.stderr)
+        
+        A = torch.ones(size, size) * 1.0  # silu(1) is about 0.731
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.silu(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.silu(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: silu(1) is about 0.731
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "chain_gelu_mul":
+        # GELU -> Multiply chain (transformer FFN pattern)
+        size = int(matrix_size)
+        print(f"[DEBUG] Running chain_gelu_mul with size={size}x{size}", file=sys.stderr)
+        
+        A = torch.ones(size, size) * 1.0
+        B = torch.ones(size, size) * 2.0  # Scale factor
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        B_tt = ttnn.from_torch(B, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup: GELU(A) * B
+        step1 = ttnn.gelu(A_tt)
+        step2 = ttnn.multiply(step1, B_tt)
+        _ = ttnn.to_torch(step2)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            step1 = ttnn.gelu(A_tt)
+            step2 = ttnn.multiply(step1, B_tt)
+            result = ttnn.to_torch(step2)
+        end_time = time.perf_counter()
+        
+        # Verify: gelu(1) * 2 is about 1.682
         output_sample = [result[0, 0].item(), result[0, 1].item()]
     
     else:
@@ -331,6 +463,11 @@ class SimulatorService:
             if param.name not in config:
                 config[param.name] = param.default
 
+        # DEBUG: Log simulation parameters to console
+        print(f"[DEBUG] Starting simulation for job {job_id}")
+        print(f"[DEBUG] Model: {request.model_id}")
+        print(f"[DEBUG] Config: {config}")
+
         # Update status
         job.status = SimulationStatus.RUNNING
         job.progress = 0.1
@@ -342,9 +479,10 @@ class SimulatorService:
             if result.get("success"):
                 metrics = PerformanceMetrics(**result["metrics"])
 
-                # Create comparison with estimated silicon performance
-                # Silicon is typically 50-200x faster than simulation
-                speedup = 100.0  # Conservative estimate
+                # Get operation-specific estimated speedup
+                # Note: These are ESTIMATES - actual values require silicon hardware measurements
+                speedup = get_estimated_speedup(request.model_id)
+                
                 expected_silicon = PerformanceMetrics(
                     latency_ms=round(metrics.latency_ms / speedup, 4),
                     throughput_inferences_per_sec=round(metrics.throughput_inferences_per_sec * speedup, 2),

@@ -167,11 +167,23 @@ export function ResultsChart({ result }: ResultsChartProps) {
             <Doughnut data={speedupData} options={doughnutOptions} />
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="text-2xl font-bold text-white">
-                {comparison.speedup_factor}×
+                {comparison.speedup_factor}x
               </span>
             </div>
           </div>
+          <p className="text-xs text-amber-400 mt-2 text-center italic">
+            * Estimated - actual speedup requires silicon measurement
+          </p>
         </div>
+      </div>
+
+      {/* Speedup Disclaimer */}
+      <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3">
+        <p className="text-xs text-amber-400">
+          <strong>Note:</strong> The silicon speedup ({comparison.speedup_factor}x) is a placeholder estimate. 
+          Real performance varies by operation type and would need to be measured on actual Tenstorrent hardware. 
+          The simulated latency and throughput values are real measurements from ttsim.
+        </p>
       </div>
 
       {/* Output verification */}
@@ -187,28 +199,43 @@ export function ResultsChart({ result }: ResultsChartProps) {
             result[0:2] = [{result.output_sample.map((v) => v.toFixed(4)).join(', ')}]
           </code>
           {result.model_id === 'add_benchmark' && (
-            <p className="text-xs text-green-400 mt-2">✓ Expected: 3.0 (1.0 + 2.0)</p>
+            <p className="text-xs text-green-400 mt-2">Expected: 3.0 (1.0 + 2.0)</p>
+          )}
+          {result.model_id === 'subtract_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">Expected: 3.0 (5.0 - 2.0)</p>
           )}
           {result.model_id === 'multiply_benchmark' && (
-            <p className="text-xs text-green-400 mt-2">✓ Expected: 6.0 (2.0 × 3.0)</p>
+            <p className="text-xs text-green-400 mt-2">Expected: 6.0 (2.0 x 3.0)</p>
           )}
           {result.model_id === 'exp_benchmark' && (
-            <p className="text-xs text-green-400 mt-2">✓ Expected: ~2.718 (e¹)</p>
+            <p className="text-xs text-green-400 mt-2">Expected: ~2.718 (exp(1))</p>
+          )}
+          {result.model_id === 'log_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">Expected: ~1.0 (ln(e))</p>
+          )}
+          {result.model_id === 'sqrt_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">Expected: 2.0 (sqrt(4))</p>
           )}
           {result.model_id === 'relu_benchmark' && (
-            <p className="text-xs text-gray-400 mt-2">Random input → ReLU (negatives become 0)</p>
+            <p className="text-xs text-gray-400 mt-2">Random input - ReLU (negatives become 0)</p>
           )}
           {result.model_id === 'chain_benchmark' && (
-            <p className="text-xs text-gray-400 mt-2">Random input → Add 0.5 → ReLU → Multiply by 2</p>
+            <p className="text-xs text-gray-400 mt-2">Random input - Add 0.5 - ReLU - Multiply by 2</p>
           )}
           {result.model_id === 'sigmoid_benchmark' && (
-            <p className="text-xs text-green-400 mt-2">✓ Expected: 0.5 (sigmoid(0) = 0.5)</p>
+            <p className="text-xs text-green-400 mt-2">Expected: 0.5 (sigmoid(0) = 0.5)</p>
           )}
           {result.model_id === 'gelu_benchmark' && (
-            <p className="text-xs text-green-400 mt-2">✓ Expected: ~0.841 (GELU(1))</p>
+            <p className="text-xs text-green-400 mt-2">Expected: ~0.841 (GELU(1))</p>
           )}
           {result.model_id === 'tanh_benchmark' && (
-            <p className="text-xs text-green-400 mt-2">✓ Expected: 0.0 (tanh(0) = 0)</p>
+            <p className="text-xs text-green-400 mt-2">Expected: 0.0 (tanh(0) = 0)</p>
+          )}
+          {result.model_id === 'silu_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">Expected: ~0.731 (SiLU(1) = 1 x sigmoid(1))</p>
+          )}
+          {result.model_id === 'chain_gelu_mul' && (
+            <p className="text-xs text-green-400 mt-2">Expected: ~1.682 (GELU(1) x 2)</p>
           )}
         </div>
       )}

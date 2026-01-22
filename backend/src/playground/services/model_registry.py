@@ -1,13 +1,79 @@
-"""Model registry for available simulation models."""
+"""Model registry for available simulation models.
+
+Models are organized into categories:
+1. Basic Arithmetic: add, subtract, multiply
+2. Mathematical Functions: exp, log, sqrt
+3. Activation Functions: relu, sigmoid, tanh, gelu, silu
+4. Pipelines: chained operations
+
+Note: Speedup estimates are placeholder values - real measurements
+would require actual silicon hardware.
+"""
 
 from ..models.schemas import ModelInfo, ModelParameter
+
+# Estimated speedup factors for silicon vs simulator (placeholder values)
+# These are rough estimates based on typical simulator vs silicon ratios.
+# Actual values would need to be measured on real hardware.
+ESTIMATED_SPEEDUPS = {
+    # Basic arithmetic ops - fastest on silicon
+    "add_benchmark": 50.0,
+    "subtract_benchmark": 50.0,
+    "multiply_benchmark": 55.0,
+    # Transcendental functions - more compute intensive
+    "exp_benchmark": 80.0,
+    "log_benchmark": 75.0,
+    "sqrt_benchmark": 60.0,
+    # Activation functions - varies by complexity
+    "relu_benchmark": 45.0,  # Simple comparison
+    "sigmoid_benchmark": 90.0,  # Involves exp
+    "tanh_benchmark": 85.0,  # Involves exp
+    "gelu_benchmark": 100.0,  # Most complex
+    "silu_benchmark": 95.0,  # Involves sigmoid
+    # Pipelines - composite of individual ops
+    "chain_add_relu_mul": 52.0,  # avg(add, relu, mul)
+    "chain_gelu_mul": 78.0,  # weighted avg(gelu, mul)
+    # Legacy name
+    "chain_benchmark": 52.0,
+}
+
+# Default speedup for unknown models
+DEFAULT_SPEEDUP = 50.0
+
+
+def get_estimated_speedup(model_id: str) -> float:
+    """Get the estimated speedup factor for a model."""
+    return ESTIMATED_SPEEDUPS.get(model_id, DEFAULT_SPEEDUP)
+
+
+def _make_standard_params(description_suffix: str = "operations") -> list[ModelParameter]:
+    """Create standard matrix_size and iterations parameters."""
+    return [
+        ModelParameter(
+            name="matrix_size",
+            display_name="Matrix Size",
+            description="Size of square tensors (NxN)",
+            type="select",
+            default=32,
+            options=["32", "64", "128", "256"],
+        ),
+        ModelParameter(
+            name="iterations",
+            display_name="Iterations",
+            description=f"Number of {description_suffix} to perform",
+            type="int",
+            default=10,
+            min=1,
+            max=100,
+        ),
+    ]
 
 
 class ModelRegistry:
     """Registry of available models for simulation.
 
     Note: The ttsim simulator has limited operation support.
-    Only element-wise operations (add, multiply, subtract, exp, relu, etc.) work reliably.
+    Only element-wise operations work reliably.
     Matrix multiplication and linear layers are NOT supported in ttsim v1.3.0.
     """
 
@@ -16,279 +82,194 @@ class ModelRegistry:
         self._register_default_models()
 
     def _register_default_models(self):
-        """Register the default set of models.
+        """Register the default set of models organized by category."""
 
-        All models use element-wise operations that are supported by ttsim.
-        """
+        # ==================== BASIC ARITHMETIC ====================
 
-        # Element-wise Addition benchmark
         self.register(
             ModelInfo(
                 id="add_benchmark",
-                name="Element-wise Addition",
-                description="Performs A + B on tensors. Verifiable: 1.0 + 2.0 = 3.0. "
-                "This is the most basic operation to verify simulator functionality.",
-                architecture="Benchmark",
+                name="Add (A + B)",
+                description="Element-wise addition. Verifiable: 1.0 + 2.0 = 3.0. The most basic tensor operation.",
+                architecture="Arithmetic",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of additions to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
+                parameters=_make_standard_params("additions"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )
 
-        # Element-wise Multiplication benchmark
+        self.register(
+            ModelInfo(
+                id="subtract_benchmark",
+                name="Subtract (A - B)",
+                description="Element-wise subtraction. Verifiable: 5.0 - 2.0 = 3.0. Basic arithmetic operation.",
+                architecture="Arithmetic",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("subtractions"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
         self.register(
             ModelInfo(
                 id="multiply_benchmark",
-                name="Element-wise Multiply",
-                description="Performs A * B on tensors. Verifiable: 2.0 * 3.0 = 6.0. "
-                "Tests element-wise multiplication throughput.",
-                architecture="Benchmark",
+                name="Multiply (A * B)",
+                description="Element-wise multiplication. Verifiable: 2.0 * 3.0 = 6.0. Note: This is NOT matrix multiplication.",
+                architecture="Arithmetic",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of multiplications to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
+                parameters=_make_standard_params("multiplications"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )
 
-        # Exponential benchmark
+        # ==================== MATHEMATICAL FUNCTIONS ====================
+
         self.register(
             ModelInfo(
                 id="exp_benchmark",
                 name="Exponential (exp)",
-                description="Computes exp(x) element-wise. Common in softmax and attention. "
-                "Tests transcendental function performance.",
-                architecture="Benchmark",
+                description="Computes e^x element-wise. Verifiable: exp(1) ~ 2.718. Used in softmax, attention mechanisms.",
+                architecture="Math",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of exp operations to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
+                parameters=_make_standard_params("exp operations"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )
 
-        # ReLU activation benchmark
+        self.register(
+            ModelInfo(
+                id="log_benchmark",
+                name="Natural Log (ln)",
+                description="Computes ln(x) element-wise. Verifiable: ln(2.718) ~ 1.0. Used in cross-entropy loss calculations.",
+                architecture="Math",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("log operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
+                id="sqrt_benchmark",
+                name="Square Root",
+                description="Computes sqrt(x) element-wise. Verifiable: sqrt(4) = 2.0. Used in normalization layers.",
+                architecture="Math",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("sqrt operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # ==================== ACTIVATION FUNCTIONS ====================
+
         self.register(
             ModelInfo(
                 id="relu_benchmark",
-                name="ReLU Activation",
-                description="Applies ReLU activation: max(0, x). Most common activation in neural networks. "
-                "Tests conditional element-wise operation.",
-                architecture="Benchmark",
+                name="ReLU",
+                description="Rectified Linear Unit: max(0, x). The most common activation in neural networks.",
+                architecture="Activation",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of ReLU operations to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
+                parameters=_make_standard_params("ReLU operations"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )
 
-        # Chained operations (simulating forward pass)
+        self.register(
+            ModelInfo(
+                id="sigmoid_benchmark",
+                name="Sigmoid",
+                description="Sigmoid activation: 1/(1+exp(-x)). Verifiable: sigmoid(0) = 0.5. Classic binary classification activation.",
+                architecture="Activation",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("sigmoid operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
+                id="tanh_benchmark",
+                name="Tanh",
+                description="Hyperbolic tangent: (e^x - e^-x)/(e^x + e^-x). Verifiable: tanh(0) = 0. Used in RNNs and LSTMs.",
+                architecture="Activation",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("tanh operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
+                id="gelu_benchmark",
+                name="GELU",
+                description="Gaussian Error Linear Unit. Verifiable: gelu(1) ~ 0.841. The activation used in BERT, GPT, transformers.",
+                architecture="Activation",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("GELU operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
+                id="silu_benchmark",
+                name="SiLU (Swish)",
+                description="Sigmoid Linear Unit: x * sigmoid(x). Verifiable: silu(1) ~ 0.731. Popular in EfficientNet.",
+                architecture="Activation",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("SiLU operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # ==================== PIPELINES ====================
+
         self.register(
             ModelInfo(
                 id="chain_benchmark",
-                name="Op Chain (Add->ReLU->Mul)",
-                description="Chains multiple operations: (A + B) -> ReLU -> multiply by scale. "
-                "Simulates a simplified forward pass pattern.",
+                name="Chain: Add->ReLU->Mul",
+                description="Simulates a layer: (input + bias) -> ReLU -> scale. Common pattern in neural network forward passes.",
                 architecture="Pipeline",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of chain operations to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
+                parameters=_make_standard_params("chain operations"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )
 
-        # Sigmoid activation benchmark
         self.register(
             ModelInfo(
-                id="sigmoid_benchmark",
-                name="Sigmoid Activation",
-                description="Computes sigmoid(x) = 1/(1+exp(-x)). Verifiable: sigmoid(0) = 0.5. "
-                "Common activation function in neural networks.",
-                architecture="Benchmark",
+                id="chain_gelu_mul",
+                name="Chain: GELU->Mul",
+                description="Transformer FFN pattern: GELU activation followed by scaling. Used in feed-forward layers of transformers.",
+                architecture="Pipeline",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of operations to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        # GELU activation benchmark (used in transformers)
-        self.register(
-            ModelInfo(
-                id="gelu_benchmark",
-                name="GELU Activation",
-                description="Gaussian Error Linear Unit - the activation used in BERT, GPT, etc. "
-                "Verifiable: gelu(1) is about 0.841.",
-                architecture="Benchmark",
-                input_shape=[32, 32],
-                output_shape=[32, 32],
-                estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of operations to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        # Tanh activation benchmark
-        self.register(
-            ModelInfo(
-                id="tanh_benchmark",
-                name="Tanh Activation",
-                description="Hyperbolic tangent activation. Verifiable: tanh(0) = 0. "
-                "Classic activation used in RNNs and LSTMs.",
-                architecture="Benchmark",
-                input_shape=[32, 32],
-                output_shape=[32, 32],
-                estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square tensors (NxN)",
-                        type="select",
-                        default=32,
-                        options=["32", "64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of operations to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                    ),
-                ],
+                parameters=_make_standard_params("chain operations"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )
