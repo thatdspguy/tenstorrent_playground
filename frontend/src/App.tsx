@@ -1,25 +1,84 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from './api';
-import type { ModelInfo, SimulationJob } from './api/types';
-import {
-    ModelSelector,
-    ParameterConfig,
-    ResultsChart,
-    SimulationStatusDisplay,
-} from './components';
+import type {
+  ModelInfo,
+  ParameterRange,
+  SimulationJob,
+  SweepParameter,
+  SweepSimulationResult,
+} from './api/types';
+import { ModelSelector, ResultsChart, SimulationStatusDisplay } from './components';
+import { DualChartView } from './components/DualChartView';
+import { SweepAxisSelector, type ParameterMode } from './components/SweepAxisSelector';
+import { SweepProgress } from './components/SweepProgress';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface AxisConfig {
+  parameterName: string | null;
+  mode: ParameterMode;
+  fixedValue: number;
+  start: number;
+  end: number;
+  numPoints: number;
+  scale: 'linear' | 'logarithmic';
+}
+
+// ============================================================================
+// Main App Component
+// ============================================================================
 
 function App() {
-  // State
+  // Core state
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelInfo | null>(null);
-  const [parameters, setParameters] = useState<
-    Record<string, number | string | boolean>
-  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
-  const [currentJob, setCurrentJob] = useState<SimulationJob | null>(null);
   const [simulatorAvailable, setSimulatorAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sweep axis configuration
+  const [xAxisConfig, setXAxisConfig] = useState<AxisConfig>({
+    parameterName: null,
+    mode: 'range',
+    fixedValue: 32,
+    start: 32,
+    end: 512,
+    numPoints: 5,
+    scale: 'linear',
+  });
+  const [yAxisConfig, setYAxisConfig] = useState<AxisConfig>({
+    parameterName: null,
+    mode: 'range',
+    fixedValue: 1,
+    start: 1,
+    end: 16,
+    numPoints: 4,
+    scale: 'linear',
+  });
+
+  // Fixed parameters (non-swept)
+  const [fixedParams, setFixedParams] = useState<Record<string, number | string | boolean>>({});
+
+  // Results
+  const [currentJob, setCurrentJob] = useState<SimulationJob | null>(null);
+  const [sweepResult, setSweepResult] = useState<SweepSimulationResult | null>(null);
+
+  // Polling ref
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Derived state - check if any axis is in range mode
+  const xIsRange = xAxisConfig.parameterName !== null && xAxisConfig.mode === 'range';
+  const yIsRange = yAxisConfig.parameterName !== null && yAxisConfig.mode === 'range';
+  const isSweepMode = xIsRange || yIsRange;
+  const is2DSweep = xIsRange && yIsRange;
+  const sweepableParams = selectedModel?.parameters.filter((p) => p.sweepable) || [];
+
+  // ============================================================================
+  // Effects
+  // ============================================================================
 
   // Load models on mount
   useEffect(() => {
@@ -32,7 +91,6 @@ function App() {
         setSimulatorAvailable(health.simulator_available);
         setModels(modelList);
         if (modelList.length > 0) {
-          // Select the add_benchmark by default as it's most reliable
           const defaultModel =
             modelList.find((m) => m.id === 'add_benchmark') || modelList[0];
           setSelectedModel(defaultModel);
@@ -47,29 +105,178 @@ function App() {
     loadData();
   }, []);
 
-  // Run simulation
+  // Initialize fixed params when model changes
+  useEffect(() => {
+    if (selectedModel) {
+      const defaults: Record<string, number | string | boolean> = {};
+      selectedModel.parameters.forEach((p) => {
+        defaults[p.name] = p.default;
+      });
+      setFixedParams(defaults);
+
+      // Auto-select first sweepable param for X-axis, second for Y-axis
+      const sweepable = selectedModel.parameters.filter((p) => p.sweepable);
+      if (sweepable.length > 0) {
+        const firstParam = sweepable[0];
+        setXAxisConfig((prev) => ({
+          ...prev,
+          parameterName: firstParam.name,
+          mode: 'range',
+          fixedValue: Number(firstParam.default ?? firstParam.min ?? 1),
+          start: Number(firstParam.min ?? 1),
+          end: Number(firstParam.max ?? 100),
+        }));
+      }
+      // Auto-select second sweepable param for Y-axis if available
+      if (sweepable.length > 1) {
+        const secondParam = sweepable[1];
+        setYAxisConfig((prev) => ({
+          ...prev,
+          parameterName: secondParam.name,
+          mode: 'range',
+          fixedValue: Number(secondParam.default ?? secondParam.min ?? 1),
+          start: Number(secondParam.min ?? 1),
+          end: Number(secondParam.max ?? 100),
+        }));
+      } else {
+        setYAxisConfig((prev) => ({ ...prev, parameterName: null }));
+      }
+    }
+  }, [selectedModel]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // ============================================================================
+  // Handlers
+  // ============================================================================
+
+  const pollSweepStatus = useCallback(async (jobId: string) => {
+    try {
+      const result = await apiClient.getSweepStatus(jobId);
+      setSweepResult(result);
+
+      if (
+        result.status === 'completed' ||
+        result.status === 'cancelled' ||
+        result.status === 'failed'
+      ) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setIsRunning(false);
+      }
+    } catch (err) {
+      console.error('Failed to poll sweep status:', err);
+    }
+  }, []);
+
   const handleRunSimulation = async () => {
     if (!selectedModel) return;
 
     setIsRunning(true);
     setCurrentJob(null);
+    setSweepResult(null);
     setError(null);
 
     try {
-      const job = await apiClient.runSimulation({
-        model_id: selectedModel.id,
-        batch_size: Number(parameters.batch_size) || 1,
-        iterations: Number(parameters.iterations) || 10,
-        parameters,
-      });
-      setCurrentJob(job);
+      if (isSweepMode) {
+        // Build sweep request based on mode
+        // X-axis: either range or fixed value
+        const xAxis: SweepParameter | null = xAxisConfig.parameterName
+          ? {
+              name: xAxisConfig.parameterName,
+              values: xAxisConfig.mode === 'range'
+                ? {
+                    start: xAxisConfig.start,
+                    end: xAxisConfig.end,
+                    num_points: xAxisConfig.numPoints,
+                    scale: xAxisConfig.scale,
+                  } as ParameterRange
+                : xAxisConfig.fixedValue, // Fixed value as single number
+            }
+          : null;
+
+        // Y-axis: either range or fixed value
+        const yAxis: SweepParameter | null = yAxisConfig.parameterName
+          ? {
+              name: yAxisConfig.parameterName,
+              values: yAxisConfig.mode === 'range'
+                ? {
+                    start: yAxisConfig.start,
+                    end: yAxisConfig.end,
+                    num_points: yAxisConfig.numPoints,
+                    scale: yAxisConfig.scale,
+                  } as ParameterRange
+                : yAxisConfig.fixedValue, // Fixed value as single number
+            }
+          : null;
+
+        // Build fixed parameters (exclude axis params)
+        const fixed: Record<string, number | string | boolean> = {};
+        Object.entries(fixedParams).forEach(([key, value]) => {
+          if (key !== xAxisConfig.parameterName && key !== yAxisConfig.parameterName) {
+            fixed[key] = value;
+          }
+        });
+
+        const result = await apiClient.runSweep({
+          model_id: selectedModel.id,
+          x_axis: xAxis ?? undefined,
+          y_axis: yAxis ?? undefined,
+          fixed_parameters: fixed,
+          iterations: Number(fixedParams.iterations) || 10,
+        });
+
+        setSweepResult(result);
+
+        // Start polling for updates
+        pollIntervalRef.current = setInterval(() => {
+          pollSweepStatus(result.job_id);
+        }, 1000);
+      } else {
+        // Regular single simulation
+        const job = await apiClient.runSimulation({
+          model_id: selectedModel.id,
+          batch_size: Number(fixedParams.batch_size) || 1,
+          iterations: Number(fixedParams.iterations) || 10,
+          parameters: fixedParams,
+        });
+        setCurrentJob(job);
+        setIsRunning(false);
+      }
     } catch (err) {
       setError('Simulation failed. Check console for details.');
       console.error(err);
-    } finally {
       setIsRunning(false);
     }
   };
+
+  const handleCancelSweep = async () => {
+    if (!sweepResult) return;
+
+    try {
+      await apiClient.cancelSweep(sweepResult.job_id);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      setIsRunning(false);
+    } catch (err) {
+      console.error('Failed to cancel sweep:', err);
+    }
+  };
+
+  // ============================================================================
+  // Render
+  // ============================================================================
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 overflow-hidden">
@@ -117,26 +324,19 @@ function App() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
+      <main className="flex-1 overflow-hidden flex flex-col">
+        {/* Error banner */}
         {error && (
-          <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300 text-sm">
+          <div className="mx-4 mt-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300 text-sm">
             {error}
           </div>
         )}
 
-        {/* Info banner about simulator capabilities */}
-        <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/50 rounded-lg text-blue-300 text-xs">
-          <span className="font-semibold">About ttsim:</span> This simulator supports element-wise tensor operations 
-          (add, multiply, exp, relu, sigmoid, gelu, tanh, etc.). Matrix multiplication and neural network layers 
-          are not yet implemented. <a href="https://github.com/tenstorrent/ttsim" target="_blank" rel="noopener noreferrer" 
-          className="underline hover:text-blue-200">Learn more →</a>
-        </div>
-
-        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left column: Model selection and parameters */}
-          <div className="lg:col-span-3 flex flex-col gap-4 overflow-auto">
-            {/* Model selector */}
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        {/* Control Bar - Grid Layout */}
+        <div className="flex-shrink-0 px-4 py-4 sm:px-6 lg:px-8 border-b border-gray-700 bg-gray-800/50">
+          <div className="flex gap-4">
+            {/* Left: Model Selector (3x4 grid) */}
+            <div className="flex-shrink-0">
               <ModelSelector
                 models={models}
                 selectedModel={selectedModel}
@@ -145,77 +345,185 @@ function App() {
               />
             </div>
 
-            {/* Parameters + Run button */}
+            {/* Right: Parameters and Run Button */}
             {selectedModel && (
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                <ParameterConfig
-                  model={selectedModel}
-                  values={parameters}
-                  onChange={setParameters}
-                />
-
-                {/* Run button */}
+              <div className="flex-1 flex flex-col gap-3">
+                {/* Row 1: Run Sweep Button - Full Width */}
                 <button
                   onClick={handleRunSimulation}
                   disabled={isRunning || !simulatorAvailable}
-                  className={`mt-4 w-full py-2.5 px-4 rounded-lg font-medium transition-all duration-200 ${
+                  className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
                     isRunning || !simulatorAvailable
                       ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                      : 'bg-tt-purple hover:bg-tt-purple-dark text-white shadow-lg shadow-tt-purple/25 hover:shadow-tt-purple/40'
+                      : isSweepMode
+                        ? 'bg-gradient-to-r from-tt-purple to-indigo-600 hover:from-tt-purple-dark hover:to-indigo-700 text-white shadow-lg shadow-tt-purple/25 hover:shadow-tt-purple/40'
+                        : 'bg-tt-purple hover:bg-tt-purple-dark text-white shadow-lg shadow-tt-purple/25 hover:shadow-tt-purple/40'
                   }`}
                 >
                   {isRunning ? (
                     <span className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      Running Simulation...
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Running...
+                    </span>
+                  ) : isSweepMode ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                        />
+                      </svg>
+                      {is2DSweep ? 'Run 2D Sweep' : 'Run 1D Sweep'}
                     </span>
                   ) : (
                     'Run Simulation'
                   )}
                 </button>
-              </div>
-            )}
-          </div>
 
-          {/* Right column: Results */}
-          <div className="lg:col-span-9 flex flex-col gap-4 overflow-auto">
-            {/* Status */}
-            <SimulationStatusDisplay job={currentJob} isRunning={isRunning} />
+                {/* Row 2: Parameter 1 and Parameter 2 Controls side by side */}
+                <div className="flex gap-3">
+                  {sweepableParams.length > 0 && (
+                    <div className="flex-1">
+                      <SweepAxisSelector
+                        label="Parameter 1"
+                        parameters={sweepableParams}
+                        selectedParameter={xAxisConfig.parameterName}
+                        config={{
+                          start: xAxisConfig.start,
+                          end: xAxisConfig.end,
+                          numPoints: xAxisConfig.numPoints,
+                          scale: xAxisConfig.scale,
+                        }}
+                        mode={xAxisConfig.mode}
+                        fixedValue={xAxisConfig.fixedValue}
+                        excludeParameters={yAxisConfig.parameterName ? [yAxisConfig.parameterName] : []}
+                        showModeToggle
+                        onChange={(param, config, mode, fixedValue) => {
+                          setXAxisConfig({
+                            parameterName: param,
+                            mode: mode ?? 'range',
+                            fixedValue: fixedValue ?? config.start,
+                            ...config,
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
 
-            {/* Results chart */}
-            {currentJob?.status === 'completed' && currentJob.result && (
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <ResultsChart result={currentJob.result} />
-              </div>
-            )}
-
-            {/* Empty state */}
-            {!currentJob && !isRunning && (
-              <div className="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center flex-1 flex flex-col items-center justify-center">
-                <div className="w-12 h-12 mb-3 rounded-full bg-gray-700 flex items-center justify-center">
-                  <svg
-                    className="w-6 h-6 text-gray-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
+                  {sweepableParams.length > 1 && (
+                    <div className="flex-1">
+                      <SweepAxisSelector
+                        label="Parameter 2"
+                        parameters={sweepableParams}
+                        selectedParameter={yAxisConfig.parameterName}
+                        config={{
+                          start: yAxisConfig.start,
+                          end: yAxisConfig.end,
+                          numPoints: yAxisConfig.numPoints,
+                          scale: yAxisConfig.scale,
+                        }}
+                        mode={yAxisConfig.mode}
+                        fixedValue={yAxisConfig.fixedValue}
+                        excludeParameters={xAxisConfig.parameterName ? [xAxisConfig.parameterName] : []}
+                        allowNone
+                        showModeToggle
+                        onChange={(param, config, mode, fixedValue) => {
+                          setYAxisConfig({
+                            parameterName: param,
+                            mode: mode ?? 'range',
+                            fixedValue: fixedValue ?? config.start,
+                            ...config,
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-base font-medium text-white mb-1">
-                  Ready to Simulate
-                </h3>
-                <p className="text-gray-400 text-sm max-w-sm">
-                  Select a model, configure parameters, and click "Run Simulation"
-                </p>
+
+                {/* Row 3: Iterations - Full Width */}
+                <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+                  <label className="text-xs font-medium text-gray-400 mb-2 block">Iterations</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={1}
+                      max={100}
+                      value={Number(fixedParams.iterations ?? 10)}
+                      onChange={(e) => setFixedParams(prev => ({
+                        ...prev,
+                        iterations: Number(e.target.value)
+                      }))}
+                      className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-tt-purple"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={Number(fixedParams.iterations ?? 10)}
+                      onChange={(e) => setFixedParams(prev => ({
+                        ...prev,
+                        iterations: Number(e.target.value)
+                      }))}
+                      className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-tt-purple"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
+        </div>
+
+        {/* Results Area - Full width below controls */}
+        <div className="flex-1 overflow-auto p-4 sm:px-6 lg:px-8">
+          {/* Sweep Progress */}
+          {sweepResult && (sweepResult.status === 'running' || sweepResult.status === 'pending') && (
+            <SweepProgress result={sweepResult} onCancel={handleCancelSweep} />
+          )}
+
+          {/* Sweep Results - Dual Chart View */}
+          {sweepResult && sweepResult.status === 'completed' && sweepResult.data_points.length > 0 && (
+            <DualChartView result={sweepResult} />
+          )}
+
+          {/* Single Simulation Status */}
+          {!sweepResult && (
+            <SimulationStatusDisplay job={currentJob} isRunning={isRunning} />
+          )}
+
+          {/* Single Simulation Results */}
+          {!sweepResult && currentJob?.status === 'completed' && currentJob.result && (
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <ResultsChart result={currentJob.result} />
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!currentJob && !sweepResult && !isRunning && (
+            <div className="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center h-full flex flex-col items-center justify-center">
+              <div className="w-12 h-12 mb-3 rounded-full bg-gray-700 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-base font-medium text-white mb-1">Ready to Simulate</h3>
+              <p className="text-gray-400 text-sm max-w-sm">
+                Select a model, configure sweep parameters, and click "Run Sweep" to explore
+                performance across parameter ranges
+              </p>
+            </div>
+          )}
         </div>
       </main>
 

@@ -56,6 +56,7 @@ def _make_standard_params(description_suffix: str = "operations") -> list[ModelP
             type="select",
             default=32,
             options=["32", "64", "128", "256", "512", "1024"],
+            sweepable=True,
         ),
         ModelParameter(
             name="batch_size",
@@ -64,6 +65,7 @@ def _make_standard_params(description_suffix: str = "operations") -> list[ModelP
             type="select",
             default=1,
             options=["1", "2", "4", "8", "16", "32"],
+            sweepable=True,
         ),
         ModelParameter(
             name="iterations",
@@ -73,6 +75,7 @@ def _make_standard_params(description_suffix: str = "operations") -> list[ModelP
             default=10,
             min=1,
             max=100,
+            sweepable=False,
         ),
     ]
 
@@ -234,20 +237,6 @@ class ModelRegistry:
                 output_shape=[32, 32],
                 estimated_params=0,
                 parameters=_make_standard_params("GELU operations"),
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        self.register(
-            ModelInfo(
-                id="silu_benchmark",
-                name="SiLU (Swish)",
-                description="Sigmoid Linear Unit: x * sigmoid(x). Verifiable: silu(1) ~ 0.731. Popular in EfficientNet.",
-                architecture="Activation",
-                input_shape=[32, 32],
-                output_shape=[32, 32],
-                estimated_params=0,
-                parameters=_make_standard_params("SiLU operations"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )

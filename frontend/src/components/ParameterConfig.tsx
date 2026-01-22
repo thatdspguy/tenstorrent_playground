@@ -1,10 +1,16 @@
-import { useEffect } from 'react';
-import type { ModelInfo, ModelParameter } from '../api/types';
+import { useEffect, useMemo } from 'react';
+import type { ModelInfo, ModelParameter, SweepableParameter } from '../api/types';
+import { RangeParameterInput } from './RangeParameterInput';
+
+// Parameters that support range/sweep mode
+const SWEEPABLE_PARAMS = ['matrix_size', 'batch_size'];
 
 interface ParameterConfigProps {
   model: ModelInfo;
   values: Record<string, number | string | boolean>;
+  sweepParams: Record<string, SweepableParameter>;
   onChange: (values: Record<string, number | string | boolean>) => void;
+  onSweepChange: (sweepParams: Record<string, SweepableParameter>) => void;
 }
 
 function ParameterInput({
@@ -74,15 +80,44 @@ function ParameterInput({
 export function ParameterConfig({
   model,
   values,
+  sweepParams,
   onChange,
+  onSweepChange,
 }: ParameterConfigProps) {
+  // Check if any parameter is in range mode
+  const hasSweepMode = useMemo(() => {
+    return Object.values(sweepParams).some(p => p.mode === 'range');
+  }, [sweepParams]);
+
   // Initialize values from defaults when model changes
   useEffect(() => {
     const defaults: Record<string, number | string | boolean> = {};
+    const defaultSweepParams: Record<string, SweepableParameter> = {};
+    
     model.parameters.forEach((param) => {
       defaults[param.name] = param.default;
+      
+      // Initialize sweep params for sweepable parameters
+      if (SWEEPABLE_PARAMS.includes(param.name) && param.options) {
+        const numericOptions = param.options.map(Number).filter(n => !isNaN(n));
+        const minOption = Math.min(...numericOptions);
+        const maxOption = Math.max(...numericOptions);
+        
+        defaultSweepParams[param.name] = {
+          mode: 'single',
+          singleValue: Number(param.default),
+          range: {
+            start: minOption,
+            end: maxOption,
+            num_points: Math.min(5, numericOptions.length),
+            scale: 'logarithmic',
+          },
+        };
+      }
     });
+    
     onChange(defaults);
+    onSweepChange(defaultSweepParams);
   }, [model.id]);
 
   const handleParamChange = (
@@ -90,6 +125,29 @@ export function ParameterConfig({
     value: number | string | boolean
   ) => {
     onChange({ ...values, [name]: value });
+    
+    // Also update the sweep param single value if applicable
+    if (SWEEPABLE_PARAMS.includes(name) && sweepParams[name]) {
+      onSweepChange({
+        ...sweepParams,
+        [name]: {
+          ...sweepParams[name],
+          singleValue: Number(value),
+        },
+      });
+    }
+  };
+
+  const handleSweepParamChange = (name: string, sweepParam: SweepableParameter) => {
+    onSweepChange({
+      ...sweepParams,
+      [name]: sweepParam,
+    });
+    
+    // Also update the regular param value when in single mode
+    if (sweepParam.mode === 'single') {
+      onChange({ ...values, [name]: sweepParam.singleValue });
+    }
   };
 
   if (model.parameters.length === 0) {
@@ -102,28 +160,52 @@ export function ParameterConfig({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-base font-semibold text-white">Parameters</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-white">Parameters</h3>
+        {hasSweepMode && (
+          <span className="px-2 py-0.5 text-xs font-medium bg-tt-purple/20 text-tt-purple-light border border-tt-purple/30 rounded-full">
+            Sweep Mode
+          </span>
+        )}
+      </div>
       <div className="grid gap-3">
-        {model.parameters.map((param) => (
-          <div key={param.name} className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-300">
-                {param.display_name}
-              </label>
-              {param.min !== undefined && param.max !== undefined && (
-                <span className="text-xs text-gray-500">
-                  {param.min} - {param.max}
-                </span>
-              )}
+        {model.parameters.map((param) => {
+          // Use RangeParameterInput for sweepable parameters
+          if (SWEEPABLE_PARAMS.includes(param.name) && param.options && sweepParams[param.name]) {
+            return (
+              <RangeParameterInput
+                key={param.name}
+                label={param.display_name}
+                description={param.description}
+                options={param.options}
+                value={sweepParams[param.name]}
+                onChange={(v) => handleSweepParamChange(param.name, v)}
+              />
+            );
+          }
+
+          // Standard parameter input for non-sweepable params
+          return (
+            <div key={param.name} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-300">
+                  {param.display_name}
+                </label>
+                {param.min !== undefined && param.max !== undefined && (
+                  <span className="text-xs text-gray-500">
+                    {param.min} - {param.max}
+                  </span>
+                )}
+              </div>
+              <ParameterInput
+                param={param}
+                value={values[param.name] ?? param.default}
+                onChange={(v) => handleParamChange(param.name, v)}
+              />
+              <p className="text-xs text-gray-500">{param.description}</p>
             </div>
-            <ParameterInput
-              param={param}
-              value={values[param.name] ?? param.default}
-              onChange={(v) => handleParamChange(param.name, v)}
-            />
-            <p className="text-xs text-gray-500">{param.description}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

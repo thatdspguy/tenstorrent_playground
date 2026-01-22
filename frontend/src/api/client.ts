@@ -4,6 +4,8 @@ import type {
     ModelInfo,
     SimulationJob,
     SimulationRequest,
+    SweepSimulationRequest,
+    SweepSimulationResult,
 } from './types';
 
 const api = axios.create({
@@ -44,6 +46,29 @@ export const apiClient = {
 
   async listJobs(limit = 10): Promise<SimulationJob[]> {
     const response = await api.get<SimulationJob[]>('/jobs', {
+      params: { limit },
+    });
+    return response.data;
+  },
+
+  // Sweep Simulation
+  async runSweep(request: SweepSimulationRequest): Promise<SweepSimulationResult> {
+    const response = await api.post<SweepSimulationResult>('/sweep', request);
+    return response.data;
+  },
+
+  async getSweepStatus(jobId: string): Promise<SweepSimulationResult> {
+    const response = await api.get<SweepSimulationResult>(`/sweep/${jobId}`);
+    return response.data;
+  },
+
+  async cancelSweep(jobId: string): Promise<{ status: string; job_id: string }> {
+    const response = await api.post<{ status: string; job_id: string }>(`/sweep/${jobId}/cancel`);
+    return response.data;
+  },
+
+  async listSweeps(limit = 10): Promise<SweepSimulationResult[]> {
+    const response = await api.get<SweepSimulationResult[]>('/sweeps', {
       params: { limit },
     });
     return response.data;
