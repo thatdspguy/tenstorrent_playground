@@ -4,116 +4,47 @@ from ..models.schemas import ModelInfo, ModelParameter
 
 
 class ModelRegistry:
-    """Registry of available models for simulation."""
+    """Registry of available models for simulation.
+
+    Note: The ttsim simulator has limited operation support.
+    Only element-wise operations (add, multiply, subtract, exp, relu, etc.) work reliably.
+    Matrix multiplication and linear layers are NOT supported in ttsim v1.3.0.
+    """
 
     def __init__(self):
         self._models: dict[str, ModelInfo] = {}
         self._register_default_models()
 
     def _register_default_models(self):
-        """Register the default set of models."""
+        """Register the default set of models.
 
-        # MNIST MLP - Simple 3-layer network
+        All models use element-wise operations that are supported by ttsim.
+        """
+
+        # Element-wise Addition benchmark
         self.register(
             ModelInfo(
-                id="mnist_mlp",
-                name="MNIST MLP",
-                description="Simple 3-layer Multi-Layer Perceptron for MNIST digit classification. "
-                "Input: 28x28 grayscale images flattened to 784 features. "
-                "Architecture: 784 → 128 → 64 → 10",
-                architecture="MLP",
-                input_shape=[1, 784],
-                output_shape=[1, 10],
-                estimated_params=109_386,  # 784*128 + 128 + 128*64 + 64 + 64*10 + 10
-                parameters=[
-                    ModelParameter(
-                        name="batch_size",
-                        display_name="Batch Size",
-                        description="Number of images to process in parallel",
-                        type="int",
-                        default=1,
-                        min=1,
-                        max=128,
-                    ),
-                    ModelParameter(
-                        name="hidden1_size",
-                        display_name="Hidden Layer 1 Size",
-                        description="Number of neurons in first hidden layer",
-                        type="select",
-                        default=128,
-                        options=["64", "128", "256"],
-                    ),
-                    ModelParameter(
-                        name="hidden2_size",
-                        display_name="Hidden Layer 2 Size",
-                        description="Number of neurons in second hidden layer",
-                        type="select",
-                        default=64,
-                        options=["32", "64", "128"],
-                    ),
-                ],
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        # LeNet-5 style CNN (simplified for MVP)
-        self.register(
-            ModelInfo(
-                id="lenet_cnn",
-                name="LeNet CNN",
-                description="LeNet-5 inspired Convolutional Neural Network for image classification. "
-                "Classic architecture with 2 conv layers followed by fully connected layers.",
-                architecture="CNN",
-                input_shape=[1, 1, 28, 28],  # NCHW format
-                output_shape=[1, 10],
-                estimated_params=44_426,
-                parameters=[
-                    ModelParameter(
-                        name="batch_size",
-                        display_name="Batch Size",
-                        description="Number of images to process in parallel",
-                        type="int",
-                        default=1,
-                        min=1,
-                        max=64,
-                    ),
-                    ModelParameter(
-                        name="conv1_filters",
-                        display_name="Conv1 Filters",
-                        description="Number of filters in first conv layer",
-                        type="select",
-                        default=6,
-                        options=["6", "8", "16"],
-                    ),
-                ],
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        # Simple matrix multiplication benchmark
-        self.register(
-            ModelInfo(
-                id="matmul_benchmark",
-                name="Matrix Multiplication",
-                description="Simple matrix multiplication benchmark to measure raw compute performance. "
-                "Useful for understanding baseline hardware capabilities.",
+                id="add_benchmark",
+                name="Element-wise Addition",
+                description="Performs A + B on tensors. Verifiable: 1.0 + 2.0 = 3.0. "
+                "This is the most basic operation to verify simulator functionality.",
                 architecture="Benchmark",
-                input_shape=[512, 512],
-                output_shape=[512, 512],
-                estimated_params=0,  # No learnable params
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
                 parameters=[
                     ModelParameter(
                         name="matrix_size",
                         display_name="Matrix Size",
-                        description="Size of square matrices (NxN)",
+                        description="Size of square tensors (NxN)",
                         type="select",
-                        default=512,
-                        options=["256", "512", "1024", "2048"],
+                        default=32,
+                        options=["32", "64", "128", "256"],
                     ),
                     ModelParameter(
                         name="iterations",
                         display_name="Iterations",
-                        description="Number of matrix multiplications to perform",
+                        description="Number of additions to perform",
                         type="int",
                         default=10,
                         min=1,
@@ -124,13 +55,13 @@ class ModelRegistry:
             )
         )
 
-        # Add benchmark - simple and reliable for simulator testing
+        # Element-wise Multiplication benchmark
         self.register(
             ModelInfo(
-                id="add_benchmark",
-                name="Element-wise Addition",
-                description="Simple element-wise addition benchmark. Performs A + B on tensors. "
-                "Most reliable operation for simulator testing.",
+                id="multiply_benchmark",
+                name="Element-wise Multiply",
+                description="Performs A * B on tensors. Verifiable: 2.0 * 3.0 = 6.0. "
+                "Tests element-wise multiplication throughput.",
                 architecture="Benchmark",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
@@ -139,7 +70,7 @@ class ModelRegistry:
                     ModelParameter(
                         name="matrix_size",
                         display_name="Matrix Size",
-                        description="Size of square matrices (NxN)",
+                        description="Size of square tensors (NxN)",
                         type="select",
                         default=32,
                         options=["32", "64", "128", "256"],
@@ -147,7 +78,109 @@ class ModelRegistry:
                     ModelParameter(
                         name="iterations",
                         display_name="Iterations",
-                        description="Number of additions to perform",
+                        description="Number of multiplications to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # Exponential benchmark
+        self.register(
+            ModelInfo(
+                id="exp_benchmark",
+                name="Exponential (exp)",
+                description="Computes exp(x) element-wise. Common in softmax and attention. "
+                "Tests transcendental function performance.",
+                architecture="Benchmark",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square tensors (NxN)",
+                        type="select",
+                        default=32,
+                        options=["32", "64", "128", "256"],
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of exp operations to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # ReLU activation benchmark
+        self.register(
+            ModelInfo(
+                id="relu_benchmark",
+                name="ReLU Activation",
+                description="Applies ReLU activation: max(0, x). Most common activation in neural networks. "
+                "Tests conditional element-wise operation.",
+                architecture="Benchmark",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square tensors (NxN)",
+                        type="select",
+                        default=32,
+                        options=["32", "64", "128", "256"],
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of ReLU operations to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # Chained operations (simulating forward pass)
+        self.register(
+            ModelInfo(
+                id="chain_benchmark",
+                name="Op Chain (Add→ReLU→Mul)",
+                description="Chains multiple operations: (A + B) → ReLU → multiply by scale. "
+                "Simulates a simplified forward pass pattern.",
+                architecture="Pipeline",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square tensors (NxN)",
+                        type="select",
+                        default=32,
+                        options=["32", "64", "128", "256"],
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of chain operations to perform",
                         type="int",
                         default=10,
                         min=1,

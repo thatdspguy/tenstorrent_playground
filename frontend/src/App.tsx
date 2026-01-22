@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { apiClient } from './api';
 import type { ModelInfo, SimulationJob } from './api/types';
 import {
-  ModelSelector,
-  ParameterConfig,
-  ResultsChart,
-  SimulationStatusDisplay,
+    ModelSelector,
+    ParameterConfig,
+    ResultsChart,
+    SimulationStatusDisplay,
 } from './components';
 
 function App() {
@@ -75,7 +75,7 @@ function App() {
     <div className="min-h-screen bg-gray-900">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-tt-purple to-tt-purple-dark flex items-center justify-center">
@@ -117,16 +117,16 @@ function App() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {error && (
           <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-lg text-red-300">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left column: Model selection and parameters */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-4 xl:col-span-3 space-y-6">
             {/* Model selector */}
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <ModelSelector
@@ -193,7 +193,7 @@ function App() {
           </div>
 
           {/* Right column: Results */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-8 xl:col-span-9 space-y-6">
             {/* Status */}
             <SimulationStatusDisplay job={currentJob} isRunning={isRunning} />
 
@@ -238,7 +238,7 @@ function App() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-gray-800 bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-500">
             Powered by{' '}
             <a

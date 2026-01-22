@@ -150,14 +150,14 @@ Open http://localhost:5173 in your browser.
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check with simulator status |
-| `/api/models` | GET | List available models |
-| `/api/models/{id}` | GET | Get model details |
-| `/api/simulate` | POST | Run a simulation |
-| `/api/simulate/{job_id}` | GET | Get job status |
-| `/api/jobs` | GET | List recent jobs |
+| Endpoint                 | Method | Description                        |
+| ------------------------ | ------ | ---------------------------------- |
+| `/api/health`            | GET    | Health check with simulator status |
+| `/api/models`            | GET    | List available models              |
+| `/api/models/{id}`       | GET    | Get model details                  |
+| `/api/simulate`          | POST   | Run a simulation                   |
+| `/api/simulate/{job_id}` | GET    | Get job status                     |
+| `/api/jobs`              | GET    | List recent jobs                   |
 
 ### Example: Run Simulation
 
@@ -169,12 +169,12 @@ curl -X POST http://localhost:8000/api/simulate \
 
 ## Available Models
 
-| Model | Architecture | Description |
-|-------|--------------|-------------|
-| `mnist_mlp` | MLP | 3-layer network: 784→128→64→10 |
-| `lenet_cnn` | CNN | LeNet-5 inspired conv network |
-| `matmul_benchmark` | Benchmark | Matrix multiplication (NxN) |
-| `add_benchmark` | Benchmark | Element-wise addition (verified working) |
+| Model              | Architecture | Description                              |
+| ------------------ | ------------ | ---------------------------------------- |
+| `mnist_mlp`        | MLP          | 3-layer network: 784→128→64→10           |
+| `lenet_cnn`        | CNN          | LeNet-5 inspired conv network            |
+| `matmul_benchmark` | Benchmark    | Matrix multiplication (NxN)              |
+| `add_benchmark`    | Benchmark    | Element-wise addition (verified working) |
 
 ## Development
 

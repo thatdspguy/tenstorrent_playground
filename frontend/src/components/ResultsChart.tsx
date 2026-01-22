@@ -1,12 +1,12 @@
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
+    ArcElement,
+    BarElement,
+    CategoryScale,
+    Chart as ChartJS,
+    Legend,
+    LinearScale,
+    Title,
+    Tooltip,
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import type { SimulationResult } from '../api/types';

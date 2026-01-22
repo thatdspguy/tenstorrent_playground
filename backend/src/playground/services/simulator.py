@@ -50,82 +50,7 @@ try:
     # Open device
     device = ttnn.open_device(device_id=0)
     
-    if model_id == "mnist_mlp":
-        # MNIST MLP: 784 -> 128 -> 64 -> 10
-        input_size = 784
-        hidden1 = config.get("hidden1_size", 128)
-        hidden2 = config.get("hidden2_size", 64)
-        output_size = 10
-        
-        # Create random weights (simulating pre-trained model)
-        W1 = torch.randn(hidden1, input_size) * 0.01
-        b1 = torch.zeros(hidden1)
-        W2 = torch.randn(hidden2, hidden1) * 0.01
-        b2 = torch.zeros(hidden2)
-        W3 = torch.randn(output_size, hidden2) * 0.01
-        b3 = torch.zeros(output_size)
-        
-        # Convert to TTNN
-        W1_tt = ttnn.from_torch(W1, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        b1_tt = ttnn.from_torch(b1.unsqueeze(0), dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        W2_tt = ttnn.from_torch(W2, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        b2_tt = ttnn.from_torch(b2.unsqueeze(0), dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        W3_tt = ttnn.from_torch(W3, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        b3_tt = ttnn.from_torch(b3.unsqueeze(0), dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        
-        # Create input tensor
-        x = torch.randn(batch_size, input_size)
-        
-        # Warmup
-        x_tt = ttnn.from_torch(x, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        W1_t = ttnn.transpose(W1_tt, -2, -1)
-        out = ttnn.linear(x_tt, W1_t, bias=b1_tt)
-        out = ttnn.relu(out)
-        W2_t = ttnn.transpose(W2_tt, -2, -1)
-        out = ttnn.linear(out, W2_t, bias=b2_tt)
-        out = ttnn.relu(out)
-        W3_t = ttnn.transpose(W3_tt, -2, -1)
-        out = ttnn.linear(out, W3_t, bias=b3_tt)
-        _ = ttnn.to_torch(out)
-        
-        # Timed iterations
-        start_time = time.perf_counter()
-        for _ in range(iterations):
-            x_tt = ttnn.from_torch(x, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-            out = ttnn.linear(x_tt, W1_t, bias=b1_tt)
-            out = ttnn.relu(out)
-            out = ttnn.linear(out, W2_t, bias=b2_tt)
-            out = ttnn.relu(out)
-            out = ttnn.linear(out, W3_t, bias=b3_tt)
-            result = ttnn.to_torch(out)
-        end_time = time.perf_counter()
-        
-        output_sample = result[0, :5].tolist()  # First 5 outputs
-        
-    elif model_id == "matmul_benchmark":
-        # Matrix multiplication benchmark
-        size = int(matrix_size)
-        
-        A = torch.randn(size, size)
-        B = torch.randn(size, size)
-        
-        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        B_tt = ttnn.from_torch(B, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        
-        # Warmup
-        C_tt = ttnn.matmul(A_tt, B_tt)
-        _ = ttnn.to_torch(C_tt)
-        
-        # Timed iterations
-        start_time = time.perf_counter()
-        for _ in range(iterations):
-            C_tt = ttnn.matmul(A_tt, B_tt)
-            result = ttnn.to_torch(C_tt)
-        end_time = time.perf_counter()
-        
-        output_sample = [result[0, 0].item(), result[0, 1].item()]
-    
-    elif model_id == "add_benchmark":
+    if model_id == "add_benchmark":
         # Simple element-wise addition benchmark (known to work on simulator)
         size = int(matrix_size)
         
@@ -149,37 +74,103 @@ try:
         # Verify: 1 + 2 = 3
         output_sample = [result[0, 0].item(), result[0, 1].item()]
         
-    elif model_id == "lenet_cnn":
-        # Simplified LeNet - just do conv + linear for demo
-        # Real implementation would use ttnn.conv2d
+    elif model_id == "multiply_benchmark":
+        # Element-wise multiplication: A * B
+        size = int(matrix_size)
         
-        # For now, flatten and use linear (simplified)
-        input_size = 28 * 28
-        output_size = 10
+        A = torch.ones(size, size) * 2.0
+        B = torch.ones(size, size) * 3.0
         
-        W = torch.randn(output_size, input_size) * 0.01
-        b = torch.zeros(output_size)
-        
-        W_tt = ttnn.from_torch(W, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        b_tt = ttnn.from_torch(b.unsqueeze(0), dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        
-        x = torch.randn(batch_size, input_size)
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        B_tt = ttnn.from_torch(B, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
         
         # Warmup
-        x_tt = ttnn.from_torch(x, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-        W_t = ttnn.transpose(W_tt, -2, -1)
-        out = ttnn.linear(x_tt, W_t, bias=b_tt)
-        _ = ttnn.to_torch(out)
+        C_tt = ttnn.multiply(A_tt, B_tt)
+        _ = ttnn.to_torch(C_tt)
         
         # Timed iterations
         start_time = time.perf_counter()
         for _ in range(iterations):
-            x_tt = ttnn.from_torch(x, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
-            out = ttnn.linear(x_tt, W_t, bias=b_tt)
-            result = ttnn.to_torch(out)
+            C_tt = ttnn.multiply(A_tt, B_tt)
+            result = ttnn.to_torch(C_tt)
         end_time = time.perf_counter()
         
-        output_sample = result[0, :5].tolist()
+        # Verify: 2 * 3 = 6
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+        
+    elif model_id == "exp_benchmark":
+        # Exponential function: exp(x)
+        size = int(matrix_size)
+        
+        A = torch.ones(size, size) * 1.0  # exp(1) ≈ 2.718
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.exp(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.exp(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: exp(1) ≈ 2.718
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+        
+    elif model_id == "relu_benchmark":
+        # ReLU activation: max(0, x)
+        size = int(matrix_size)
+        
+        # Mix of positive and negative values
+        A = torch.randn(size, size)
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.relu(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.relu(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Output will show non-negative values (negatives become 0)
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+        
+    elif model_id == "chain_benchmark":
+        # Operation chain: Add -> ReLU -> Multiply
+        size = int(matrix_size)
+        
+        A = torch.randn(size, size)  # Random values
+        B = torch.ones(size, size) * 0.5  # Add 0.5
+        C = torch.ones(size, size) * 2.0  # Multiply by 2
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        B_tt = ttnn.from_torch(B, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        C_tt = ttnn.from_torch(C, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup: (A + B) -> ReLU -> * C
+        step1 = ttnn.add(A_tt, B_tt)
+        step2 = ttnn.relu(step1)
+        step3 = ttnn.multiply(step2, C_tt)
+        _ = ttnn.to_torch(step3)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            step1 = ttnn.add(A_tt, B_tt)
+            step2 = ttnn.relu(step1)
+            step3 = ttnn.multiply(step2, C_tt)
+            result = ttnn.to_torch(step3)
+        end_time = time.perf_counter()
+        
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
     
     else:
         raise ValueError(f"Unknown model: {model_id}")
