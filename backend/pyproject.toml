@@ -1,6 +1,6 @@
 [project]
 name = "playground"
-version = "1.0.0"
+version = "1.1.0"
 description = "Tenstorrent Simulator Playground Backend"
 readme = "README.md"
 requires-python = ">=3.12"

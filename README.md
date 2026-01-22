@@ -2,7 +2,7 @@
 
 A web-based playground for exploring Tenstorrent AI accelerator capabilities using a **hardware-free simulator**. Run real TTNN operations, visualize performance metrics, and learn about Tenstorrent's developer tooling—no physical hardware required.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![React](https://img.shields.io/badge/react-19-61dafb)
@@ -12,11 +12,14 @@ A web-based playground for exploring Tenstorrent AI accelerator capabilities usi
 ## ✨ Features
 
 - 🚀 **Real Simulation** — Execute actual TTNN operations on the ttsim hardware simulator
+- 🔀 **Multi-Architecture** — Switch between Wormhole and Blackhole simulators with a single click
 - 📊 **Performance Metrics** — View latency, throughput, and memory usage with interactive charts
 - 🔄 **Hardware Comparison** — Compare simulated performance against expected silicon results
 - 📈 **Parameter Sweeps** — Run 1D and 2D parameter sweeps with automatic visualization
+- 📉 **Multiple Visualizations** — 2D line charts, 3D surface plots, and heatmaps with themed color schemes
 - 🎨 **Modern UI** — Dark theme with Tenstorrent brand colors and responsive design
-- ⚡ **Multiple Models** — MNIST MLP, LeNet CNN, matrix operations, and more
+- ⚡ **Multiple Models** — Element-wise operations, activations, and operation chains
+- 💾 **Smart Defaults** — Sensible parameter defaults with settings preserved across model changes
 
 ## 🖼️ Preview
 
@@ -101,12 +104,18 @@ sudo apt update && sudo apt install -y python3 python3-pip wget curl git
 # Install ttnn and PyTorch
 pip3 install ttnn torch --break-system-packages --index-url https://download.pytorch.org/whl/cpu
 
-# Download ttsim simulator
+# Download ttsim simulators (Wormhole and Blackhole)
 mkdir -p ~/ttsim && cd ~/ttsim
 wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so
 
 # Clone tt-metal for SOC descriptors
 git clone --depth 1 https://github.com/tenstorrent/tt-metal.git ~/tt-metal
+
+# Copy SOC descriptors for both architectures
+cp ~/tt-metal/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_descriptor.yaml
+cp ~/tt-metal/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/wormhole_soc_descriptor.yaml
+cp ~/tt-metal/tt_metal/soc_descriptors/blackhole_140_arch.yaml ~/ttsim/blackhole_soc_descriptor.yaml
 
 # Install SFPI firmware
 wget https://github.com/tenstorrent/sfpi/releases/download/7.17.0/sfpi_7.17.0_x86_64_debian.deb
@@ -265,16 +274,17 @@ Copy `.env.example` to `.env` and customize as needed:
 cp .env.example .env
 ```
 
-| Variable             | Default                     | Description                       |
-| -------------------- | --------------------------- | --------------------------------- |
-| `DEBUG`              | `false`                     | Enable debug logging              |
-| `HOST`               | `0.0.0.0`                   | API server bind address           |
-| `PORT`               | `8000`                      | API server port                   |
-| `WSL_DISTRO`         | `Ubuntu`                    | WSL2 distribution name            |
-| `TT_METAL_HOME`      | `~/tt-metal`                | tt-metal installation path        |
-| `TT_METAL_SIMULATOR` | `~/ttsim/libttsim_wh.so`    | Simulator library path            |
-| `SIMULATOR_TIMEOUT`  | `300`                       | Simulation timeout (seconds)      |
-| `CORS_ORIGINS`       | `["http://localhost:5173"]` | Allowed CORS origins (JSON array) |
+| Variable                | Default                     | Description                       |
+| ----------------------- | --------------------------- | --------------------------------- |
+| `DEBUG`                 | `false`                     | Enable debug logging              |
+| `HOST`                  | `0.0.0.0`                   | API server bind address           |
+| `PORT`                  | `8000`                      | API server port                   |
+| `WSL_DISTRO`            | `Ubuntu`                    | WSL2 distribution name            |
+| `TT_METAL_HOME`         | `~/tt-metal`                | tt-metal installation path        |
+| `TT_METAL_SIMULATOR_WH` | `~/ttsim/libttsim_wh.so`    | Wormhole simulator library path   |
+| `TT_METAL_SIMULATOR_BH` | `~/ttsim/libttsim_bh.so`    | Blackhole simulator library path  |
+| `SIMULATOR_TIMEOUT`     | `300`                       | Simulation timeout (seconds)      |
+| `CORS_ORIGINS`          | `["http://localhost:5173"]` | Allowed CORS origins (JSON array) |
 
 ---
 
@@ -322,13 +332,27 @@ npm run build
 
 ### Simulator not available
 
-**Symptoms**: Health check shows `simulator_available: false`
+**Symptoms**: Health check shows `simulator_available: false` or a specific chip shows as unavailable
 
-**Solution**: Ensure WSL2 environment variables are set:
+**Solution**: Ensure WSL2 environment variables are set and both simulator files exist:
 ```bash
+# Check simulator files exist
+ls -la ~/ttsim/*.so
+
+# Set environment variables
 export TT_METAL_HOME=~/tt-metal
 export TT_METAL_SIMULATOR=~/ttsim/libttsim_wh.so
 export TT_METAL_SLOW_DISPATCH_MODE=1
+```
+
+### Blackhole simulator returning zeros
+
+**Symptoms**: Blackhole simulations complete but show 0 latency/throughput
+
+**Solution**: Ensure the correct SOC descriptor is available:
+```bash
+# Copy Blackhole SOC descriptor
+cp ~/tt-metal/tt_metal/soc_descriptors/blackhole_140_arch.yaml ~/ttsim/blackhole_soc_descriptor.yaml
 ```
 
 ### SFPI firmware not found
