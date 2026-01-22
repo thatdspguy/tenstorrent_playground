@@ -1,0 +1,56 @@
+# Tenstorrent Simulator Playground - Docker Compose
+# 
+# Quick start:
+#   docker compose up --build
+#
+# Then open http://localhost:5173 in your browser
+#
+# This Docker setup includes the ttsim simulator for full simulation support.
+
+services:
+  # ==========================================================================
+  # Backend API Service (with ttsim simulator)
+  # ==========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=false
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DOCKER_CONTAINER=true
+      - TT_METAL_HOME=/opt/tt-metal
+      - TT_METAL_SIMULATOR=/opt/ttsim/libttsim_wh.so
+      - TT_METAL_SLOW_DISPATCH_MODE=1
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://frontend:80"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ==========================================================================
+  # Frontend Service
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  default:
+    name: tenstorrent-playground

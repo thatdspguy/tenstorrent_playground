@@ -155,9 +155,8 @@ class SweepService:
                     job.data_points.append(data_point)
                     job.completed_points += 1
                     return data_point
-            except Exception as e:
-                # Log error but continue sweep, still count as completed
-                print(f"Sweep point failed: params={param_values}, error={e}")
+            except Exception:
+                # Continue sweep on error, still count as completed
                 data_point = SweepDataPoint(
                     parameter_values=param_values,
                     latency_ms=0.0,

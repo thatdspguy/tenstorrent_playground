@@ -97,7 +97,7 @@ export interface SweepParameter {
 
 export interface SweepSimulationRequest {
   model_id: string;
-  x_axis: SweepParameter;
+  x_axis?: SweepParameter;
   y_axis?: SweepParameter | null;
   fixed_parameters?: Record<string, number | string | boolean>;
   chip?: string;

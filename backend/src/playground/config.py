@@ -1,5 +1,8 @@
 """Configuration settings for the playground backend."""
 
+import logging
+import sys
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -30,3 +33,23 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def configure_logging() -> logging.Logger:
+    """Configure application logging based on DEBUG setting."""
+    log_level = logging.DEBUG if settings.debug else logging.INFO
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+    logger = logging.getLogger("playground")
+    logger.setLevel(log_level)
+
+    return logger
+
+
+logger = configure_logging()

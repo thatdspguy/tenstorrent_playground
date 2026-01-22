@@ -192,10 +192,10 @@ function Surface3D({
       colorscale: 'Viridis' as unknown as Plotly.ColorScale,
       opacity: 0.9,
       contours: {
-        x: { show: true, usecolormap: true, highlightcolor: '#a78bfa' } as any,
-        y: { show: true, usecolormap: true, highlightcolor: '#a78bfa' } as any,
-        z: { show: true, usecolormap: true, highlightcolor: '#a78bfa' } as any,
-      },
+        x: { show: true, usecolormap: true, highlightcolor: '#a78bfa' },
+        y: { show: true, usecolormap: true, highlightcolor: '#a78bfa' },
+        z: { show: true, usecolormap: true, highlightcolor: '#a78bfa' },
+      } as any,
       hovertemplate: `${formatParamName(result.x_axis_name)}: %{x}<br>${formatParamName(result.y_axis_name || '')}: %{y}<br>${zLabel}: %{z:.2f}<extra></extra>`,
     },
   ];

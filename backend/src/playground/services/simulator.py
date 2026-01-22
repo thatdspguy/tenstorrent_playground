@@ -1,7 +1,14 @@
-"""Simulator service for running models on ttsim via WSL2."""
+"""Simulator service for running models on ttsim.
+
+Supports two execution modes:
+1. WSL2 mode (Windows): Runs simulations in WSL2 via subprocess
+2. Native mode (Linux/Docker): Runs simulations directly using Python
+"""
 
 import asyncio
 import json
+import os
+import platform
 import uuid
 from datetime import datetime
 
@@ -15,6 +22,11 @@ from ..models.schemas import (
     SimulationStatus,
 )
 from .model_registry import get_estimated_speedup, model_registry
+
+# Detect execution mode
+IS_LINUX = platform.system() == "Linux"
+IS_DOCKER = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER") == "true"
+USE_NATIVE_MODE = IS_LINUX  # Use native Python execution on Linux (including Docker)
 
 # Python script template to run in WSL2
 SIMULATION_SCRIPT = """
@@ -39,9 +51,6 @@ batch_size = config["batch_size"]
 iterations = config["iterations"]
 matrix_size = config.get("matrix_size", 512)
 
-# Debug output - print parameters received
-print(f"[DEBUG] model_id={model_id}, matrix_size={matrix_size}, iterations={iterations}, batch_size={batch_size}", file=sys.stderr)
-
 results = {
     "success": False,
     "error": None,
@@ -56,7 +65,6 @@ try:
     if model_id == "add_benchmark":
         # Simple element-wise addition benchmark (known to work on simulator)
         size = int(matrix_size)
-        print(f"[DEBUG] Running add_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0
         B = torch.ones(size, size) * 2.0
@@ -81,7 +89,6 @@ try:
     elif model_id == "subtract_benchmark":
         # Element-wise subtraction: A - B
         size = int(matrix_size)
-        print(f"[DEBUG] Running subtract_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 5.0
         B = torch.ones(size, size) * 2.0
@@ -106,7 +113,6 @@ try:
     elif model_id == "multiply_benchmark":
         # Element-wise multiplication: A * B
         size = int(matrix_size)
-        print(f"[DEBUG] Running multiply_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 2.0
         B = torch.ones(size, size) * 3.0
@@ -131,7 +137,6 @@ try:
     elif model_id == "exp_benchmark":
         # Exponential function: exp(x)
         size = int(matrix_size)
-        print(f"[DEBUG] Running exp_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0  # exp(1) is about 2.718
         
@@ -154,7 +159,6 @@ try:
     elif model_id == "log_benchmark":
         # Natural logarithm: ln(x)
         size = int(matrix_size)
-        print(f"[DEBUG] Running log_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 2.718281828  # ln(e) = 1
         
@@ -177,7 +181,6 @@ try:
     elif model_id == "sqrt_benchmark":
         # Square root: sqrt(x)
         size = int(matrix_size)
-        print(f"[DEBUG] Running sqrt_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 4.0  # sqrt(4) = 2
         
@@ -200,7 +203,6 @@ try:
     elif model_id == "relu_benchmark":
         # ReLU activation: max(0, x)
         size = int(matrix_size)
-        print(f"[DEBUG] Running relu_benchmark with size={size}x{size}", file=sys.stderr)
         
         # Mix of positive and negative values
         A = torch.randn(size, size)
@@ -224,7 +226,6 @@ try:
     elif model_id == "chain_benchmark":
         # Operation chain: Add -> ReLU -> Multiply
         size = int(matrix_size)
-        print(f"[DEBUG] Running chain_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.randn(size, size)  # Random values
         B = torch.ones(size, size) * 0.5  # Add 0.5
@@ -254,7 +255,6 @@ try:
     elif model_id == "sigmoid_benchmark":
         # Sigmoid activation: 1/(1+exp(-x))
         size = int(matrix_size)
-        print(f"[DEBUG] Running sigmoid_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.zeros(size, size)  # sigmoid(0) = 0.5
         
@@ -277,7 +277,6 @@ try:
     elif model_id == "gelu_benchmark":
         # GELU activation (used in transformers)
         size = int(matrix_size)
-        print(f"[DEBUG] Running gelu_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0  # gelu(1) is about 0.841
         
@@ -300,7 +299,6 @@ try:
     elif model_id == "tanh_benchmark":
         # Tanh activation
         size = int(matrix_size)
-        print(f"[DEBUG] Running tanh_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.zeros(size, size)  # tanh(0) = 0
         
@@ -323,7 +321,6 @@ try:
     elif model_id == "silu_benchmark":
         # SiLU (Swish) activation: x * sigmoid(x)
         size = int(matrix_size)
-        print(f"[DEBUG] Running silu_benchmark with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0  # silu(1) is about 0.731
         
@@ -346,7 +343,6 @@ try:
     elif model_id == "chain_gelu_mul":
         # GELU -> Multiply chain (transformer FFN pattern)
         size = int(matrix_size)
-        print(f"[DEBUG] Running chain_gelu_mul with size={size}x{size}", file=sys.stderr)
         
         A = torch.ones(size, size) * 1.0
         B = torch.ones(size, size) * 2.0  # Scale factor
@@ -409,12 +405,48 @@ print("###RESULT_END###")
 
 
 class SimulatorService:
-    """Service for running simulations on ttsim via WSL2."""
+    """Service for running simulations on ttsim.
+
+    Supports WSL2 mode (Windows) and native mode (Linux/Docker).
+    """
 
     def __init__(self):
         self._jobs: dict[str, SimulationJob] = {}
+        self._native_available: bool | None = None  # Cached result for native mode
 
     async def check_simulator_available(self) -> bool:
+        """Check if the simulator is available."""
+        if USE_NATIVE_MODE:
+            return await self._check_native_available()
+        else:
+            return await self._check_wsl_available()
+
+    async def _check_native_available(self) -> bool:
+        """Check if ttsim is available natively (Linux/Docker)."""
+        if self._native_available is not None:
+            return self._native_available
+
+        try:
+            # Check if simulator library exists
+            simulator_path = os.path.expanduser(settings.tt_metal_simulator)
+            if not os.path.exists(simulator_path):
+                self._native_available = False
+                return False
+
+            # Try to import ttnn
+            import importlib.util
+
+            if importlib.util.find_spec("ttnn") is None:
+                self._native_available = False
+                return False
+
+            self._native_available = True
+            return True
+        except Exception:
+            self._native_available = False
+            return False
+
+    async def _check_wsl_available(self) -> bool:
         """Check if the simulator is available in WSL2."""
         try:
             result = await asyncio.create_subprocess_exec(
@@ -474,19 +506,16 @@ class SimulatorService:
             else:
                 config[param.name] = param.default
 
-        # DEBUG: Log simulation parameters to console
-        print(f"[DEBUG] Starting simulation for job {job_id}")
-        print(f"[DEBUG] Model: {request.model_id}")
-        print(f"[DEBUG] Request parameters: {request.parameters}")
-        print(f"[DEBUG] Final config: {config}")
-
         # Update status
         job.status = SimulationStatus.RUNNING
         job.progress = 0.1
 
         try:
-            # Run simulation in WSL2
-            result = await self._run_in_wsl(config)
+            # Run simulation based on execution mode
+            if USE_NATIVE_MODE:
+                result = await self._run_native(config)
+            else:
+                result = await self._run_in_wsl(config)
 
             if result.get("success"):
                 metrics = PerformanceMetrics(**result["metrics"])
@@ -534,7 +563,6 @@ class SimulatorService:
 
     async def _run_in_wsl(self, config: dict) -> dict:
         """Execute the simulation script in WSL2."""
-        import os
         import tempfile
 
         # Create temporary files for script and config
@@ -623,6 +651,87 @@ python3 "{wsl_script_path}" "{wsl_config_path}"
             }
         finally:
             # Clean up temporary files
+            try:
+                os.unlink(config_file)
+                os.unlink(script_file)
+            except:
+                pass
+
+    async def _run_native(self, config: dict) -> dict:
+        """Execute the simulation natively (Linux/Docker mode)."""
+        import tempfile
+
+        # Write config to temp file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(config, f)
+            config_file = f.name
+
+        # Write script to temp file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            # Modify script to read config from file
+            modified_script = SIMULATION_SCRIPT.replace(
+                "config = json.loads(sys.argv[1])", "config = json.load(open(sys.argv[1]))"
+            )
+            f.write(modified_script)
+            script_file = f.name
+
+        try:
+            # Set environment variables
+            env = os.environ.copy()
+            env["TT_METAL_HOME"] = os.path.expanduser(settings.tt_metal_home)
+            env["TT_METAL_SIMULATOR"] = os.path.expanduser(settings.tt_metal_simulator)
+            env["TT_METAL_SLOW_DISPATCH_MODE"] = "1"
+            env["LOGURU_LEVEL"] = "ERROR"
+            env["TT_METAL_LOGGER_LEVEL"] = "ERROR"
+
+            # Run simulation as subprocess
+            process = await asyncio.create_subprocess_exec(
+                "python3",
+                script_file,
+                config_file,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+            )
+
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=settings.simulator_timeout)
+            except asyncio.TimeoutError:
+                process.kill()
+                raise
+
+            # Parse output
+            output = stdout.decode("utf-8")
+            stderr_text = stderr.decode("utf-8")
+
+            # Look for the result between markers
+            start_marker = "###RESULT_START###"
+            end_marker = "###RESULT_END###"
+
+            if start_marker in output and end_marker in output:
+                start_idx = output.index(start_marker) + len(start_marker)
+                end_idx = output.index(end_marker)
+                json_str = output[start_idx:end_idx].strip()
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError as e:
+                    return {"success": False, "error": f"JSON parse error: {e}. JSON: {json_str[:200]}"}
+
+            # Fallback: look for JSON in output
+            for line in reversed(output.strip().split("\n")):
+                line = line.strip()
+                if line.startswith("{") and line.endswith("}"):
+                    try:
+                        return json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+
+            return {
+                "success": False,
+                "error": f"Failed to parse output. Stdout: {output[:300]}. Stderr: {stderr_text[:300]}",
+            }
+        finally:
+            # Clean up
             try:
                 os.unlink(config_file)
                 os.unlink(script_file)
