@@ -343,40 +343,19 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
 ```
 
-### Step 3: Install tt-metal (Option A: From Wheel - Simpler)
+### Step 3: Install ttnn and PyTorch
 ```bash
-# Create virtual environment
-python3 -m venv ~/tt-env
-source ~/tt-env/bin/activate
+pip3 install ttnn torch --break-system-packages --index-url https://download.pytorch.org/whl/cpu
+```
 
-# Install ttnn
-pip install ttnn
-
-# Set TT_METAL_HOME (needed for SOC descriptors)
-# Clone just for the descriptor files
+### Step 4: Clone tt-metal for SOC descriptors
+```bash
+# Clone just for the descriptor files (shallow clone)
 git clone --depth 1 https://github.com/tenstorrent/tt-metal.git ~/tt-metal
 export TT_METAL_HOME=~/tt-metal
 ```
 
-### Step 3 (Alternative): Install tt-metal (Option B: From Source - Full)
-```bash
-cd ~
-git clone https://github.com/tenstorrent/tt-metal.git --recurse-submodules
-cd tt-metal
-export TT_METAL_HOME=$(pwd)
-
-# Install dependencies
-./install_dependencies.sh
-
-# Build
-./build_metal.sh
-
-# Create Python environment
-./create_venv.sh
-source python_env/bin/activate
-```
-
-### Step 4: Download and Configure ttsim
+### Step 5: Download and Configure ttsim
 ```bash
 # Create simulator directory
 mkdir -p ~/ttsim
@@ -388,31 +367,38 @@ wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.s
 
 # Copy SOC descriptor (REQUIRED - must be in same dir as .so)
 cp $TT_METAL_HOME/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_descriptor.yaml
+```
 
-# Set environment variables (add to ~/.bashrc for persistence)
-echo 'export TT_METAL_HOME=~/tt-metal' >> ~/.bashrc
-echo 'export TT_METAL_SIMULATOR=~/ttsim/libttsim_wh.so' >> ~/.bashrc
-echo 'export TT_METAL_SLOW_DISPATCH_MODE=1' >> ~/.bashrc
+### Step 6: Install SFPI (Software FPU Implementation)
+```bash
+# Download and install SFPI firmware
+wget https://github.com/tenstorrent/sfpi/releases/download/7.17.0/sfpi_7.17.0_x86_64_debian.deb -O /tmp/sfpi.deb
+sudo dpkg -i /tmp/sfpi.deb
+```
+
+### Step 7: Set Environment Variables
+```bash
+# Add to ~/.bashrc for persistence
+cat >> ~/.bashrc << 'EOF'
+
+# Tenstorrent Playground Environment
+export TT_METAL_HOME=~/tt-metal
+export TT_METAL_SIMULATOR=~/ttsim/libttsim_wh.so
+export TT_METAL_SLOW_DISPATCH_MODE=1
+EOF
 source ~/.bashrc
 ```
 
-### Step 5: Verify Simulator Works
+### Step 8: Verify Simulator Works ✅ VERIFIED WORKING
 ```bash
-# Test with a simple Python script
-python3 << 'EOF'
-import ttnn
-print("TTNN imported successfully!")
-print(f"TTNN version: {ttnn.__version__ if hasattr(ttnn, '__version__') else 'N/A'}")
+# Run test script
+bash /mnt/d/git/tenstorrent_playground/scripts/test_simulator.sh
 
-# Try to open device (this will use simulator)
-try:
-    device = ttnn.open_device(device_id=0)
-    print(f"Device opened successfully: {device}")
-    ttnn.close_device(device)
-    print("Simulator is working!")
-except Exception as e:
-    print(f"Error: {e}")
-EOF
+# Expected output:
+# SUCCESS! Device opened: MeshDevice(1x1 grid, 1 devices)
+# Result shape: torch.Size([32, 32])
+# Expected value: 3.0, Got: 3.0
+# SUCCESS! Tensor operation completed on simulator!
 ```
 
 ---

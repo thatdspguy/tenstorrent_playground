@@ -41,16 +41,11 @@ else
 fi
 
 # ============================================
-# Phase 3: Install ttnn
+# Phase 3: Install ttnn and PyTorch
 # ============================================
 echo ""
-echo "=== Installing ttnn ==="
-if [ ! -d "$HOME/tt-env" ]; then
-    python3 -m venv ~/tt-env
-fi
-source ~/tt-env/bin/activate
-pip install --upgrade pip
-pip install ttnn
+echo "=== Installing ttnn and PyTorch ==="
+pip3 install ttnn torch --break-system-packages --index-url https://download.pytorch.org/whl/cpu
 
 # ============================================
 # Phase 4: Clone tt-metal for SOC descriptors
@@ -86,6 +81,21 @@ cp $TT_METAL_HOME/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_
 echo "Copied SOC descriptor"
 
 # ============================================
+# Phase 5.5: Install SFPI
+# ============================================
+echo ""
+echo "=== Installing SFPI Firmware ==="
+SFPI_VERSION="7.17.0"
+if [ ! -d "/opt/tenstorrent/sfpi" ]; then
+    wget -q https://github.com/tenstorrent/sfpi/releases/download/${SFPI_VERSION}/sfpi_${SFPI_VERSION}_x86_64_debian.deb -O /tmp/sfpi.deb
+    sudo dpkg -i /tmp/sfpi.deb
+    rm /tmp/sfpi.deb
+    echo "SFPI installed"
+else
+    echo "SFPI already installed"
+fi
+
+# ============================================
 # Phase 6: Set Environment Variables
 # ============================================
 echo ""
@@ -111,7 +121,6 @@ export TT_METAL_SLOW_DISPATCH_MODE=1
 # ============================================
 echo ""
 echo "=== Verifying Installation ==="
-source ~/tt-env/bin/activate
 
 python3 << 'PYEOF'
 import sys
@@ -120,6 +129,13 @@ try:
     print(f"✓ ttnn imported successfully")
 except ImportError as e:
     print(f"✗ Failed to import ttnn: {e}")
+    sys.exit(1)
+
+try:
+    import torch
+    print(f"✓ torch imported successfully")
+except ImportError as e:
+    print(f"✗ Failed to import torch: {e}")
     sys.exit(1)
 
 print("")
@@ -131,16 +147,28 @@ print(f"TT_METAL_SLOW_DISPATCH_MODE: {os.environ.get('TT_METAL_SLOW_DISPATCH_MOD
 PYEOF
 
 echo ""
+echo "=== Testing Simulator ==="
+python3 << 'PYEOF'
+import ttnn
+import os
+
+try:
+    device = ttnn.open_device(device_id=0)
+    print(f"✓ Device opened: {device}")
+    ttnn.close_device(device)
+    print("✓ Simulator is working!")
+except Exception as e:
+    print(f"✗ Simulator error: {e}")
+PYEOF
+
+echo ""
 echo "=== Setup Complete ==="
 echo ""
-echo "To activate the environment in future sessions:"
-echo "  source ~/tt-env/bin/activate"
+echo "Environment is ready! To test tensor operations:"
+echo "  bash scripts/test_simulator.sh"
 echo ""
-echo "To test the simulator:"
-echo "  python3 -c \"import ttnn; d=ttnn.open_device(0); print(d); ttnn.close_device(d)\""
-echo ""
-echo "To start the backend:"
+echo "To start the backend (after implementation):"
 echo "  cd backend && uv run uvicorn playground.main:app --reload"
 echo ""
-echo "To start the frontend (in Windows):"
+echo "To start the frontend (in Windows, after implementation):"
 echo "  cd frontend && npm run dev"
