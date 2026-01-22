@@ -123,6 +123,14 @@ function App() {
           </div>
         )}
 
+        {/* Info banner about simulator capabilities */}
+        <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/50 rounded-lg text-blue-300 text-xs">
+          <span className="font-semibold">About ttsim:</span> This simulator supports element-wise tensor operations 
+          (add, multiply, exp, relu, sigmoid, gelu, tanh, etc.). Matrix multiplication and neural network layers 
+          are not yet implemented. <a href="https://github.com/tenstorrent/ttsim" target="_blank" rel="noopener noreferrer" 
+          className="underline hover:text-blue-200">Learn more →</a>
+        </div>
+
         <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Left column: Model selection and parameters */}
           <div className="lg:col-span-3 flex flex-col gap-4 overflow-auto">
