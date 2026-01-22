@@ -22,45 +22,9 @@ A web-based playground for exploring Tenstorrent AI accelerator capabilities usi
 
 The playground features model selection, parameter sweep configuration, and interactive results:
 
-```
-┌───────────────────────────────────────────────────────────────────────────────┐
-│ 🔲 Tenstorrent Simulator Playground                       ● Simulator Ready  │
-│    Explore AI models on simulated Wormhole hardware                          │
-├───────────────────────────────────────────────────────────────────────────────┤
-│ ┌─────────────┐ ┌───────────────────────────────────────────────────────────┐ │
-│ │ Select Model│ │                 [ ▶ Run 2D Sweep ]                        │ │
-│ │ ┌─────────┐ │ ├─────────────────────────────┬─────────────────────────────┤ │
-│ │ │ Add ✓   │ │ │ Parameter 1: matrix_size    │ Parameter 2: batch_size     │ │
-│ │ │Subtract │ │ │ ● Range  ○ Fixed            │ ● Range  ○ Fixed            │ │
-│ │ │Multiply │ │ │ Start: 32    End: 512       │ Start: 1     End: 16        │ │
-│ │ │   Exp   │ │ │ Points: 5    Scale: linear  │ Points: 4    Scale: linear  │ │
-│ │ │   Log   │ │ ├─────────────────────────────┴─────────────────────────────┤ │
-│ │ │  Sqrt   │ │ │ Iterations ═══════════════════════════════════════ [ 10] │ │
-│ │ │  ReLU   │ │ └───────────────────────────────────────────────────────────┘ │
-│ │ │ Sigmoid │ │                                                               │
-│ │ │  Tanh   │ │                                                               │
-│ │ │  GELU   │ │                                                               │
-│ │ │Chain... │ │                                                               │
-│ │ └─────────┘ │                                                               │
-│ └─────────────┘                                                               │
-├───────────────────────────────────────────────────────────────────────────────┤
-│  X-Axis: Matrix Size  |  Series: Batch Size values                           │
-│  ● batch=1  ● batch=2  ● batch=4  ● batch=8                                  │
-│  ┌────────────────────────────────┐  ┌────────────────────────────────────┐  │
-│  │      Latency Analysis          │  │     Throughput Analysis            │  │
-│  │   ms                           │  │   ops/sec                          │  │
-│  │   ▲                     ____   │  │   ▲  ____                          │  │
-│  │   │               _____/       │  │   │ /    \____                     │  │
-│  │   │         _____/             │  │   │/          \____                │  │
-│  │   │   _____/                   │  │   │                \____           │  │
-│  │   │__/                         │  │   │                     \____      │  │
-│  │   └────────────────────────►   │  │   └────────────────────────────►   │  │
-│  │           matrix_size          │  │           matrix_size              │  │
-│  └────────────────────────────────┘  └────────────────────────────────────┘  │
-├───────────────────────────────────────────────────────────────────────────────┤
-│                    Powered by ttsim and tt-metal                             │
-└───────────────────────────────────────────────────────────────────────────────┘
-```
+![Tenstorrent Playground](assets/tenstorrent_playground.gif
+)
+
 
 ---
 
