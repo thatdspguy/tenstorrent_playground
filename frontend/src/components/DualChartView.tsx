@@ -31,11 +31,14 @@ interface DualChartViewProps {
   config?: ChartConfig;
 }
 
-// Color schemes
+// Themed color palettes for line charts (match 3D colorscale themes)
 const COLOR_SCHEMES = {
-  purple: ['#7c3aed', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#14b8a6'],
-  viridis: ['#440154', '#482878', '#3e4a89', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'],
-  plasma: ['#0d0887', '#46039f', '#7201a8', '#9c179e', '#bd3786', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26', '#f0f921'],
+  // Purple theme: shades of purple, violet, indigo
+  purple: ['#7c3aed', '#8b5cf6', '#a78bfa', '#6d28d9', '#5b21b6', '#4c1d95', '#c4b5fd', '#9333ea'],
+  // Viridis theme: teals, greens, yellows (matches Viridis colorscale)
+  viridis: ['#21918c', '#5ec962', '#fde725', '#3b528b', '#440154', '#31688e', '#90d743', '#35b779'],
+  // Plasma theme: magentas, oranges, yellows (matches Plasma colorscale)
+  plasma: ['#bd3786', '#f89540', '#f0f921', '#7201a8', '#0d0887', '#cc4778', '#fdca26', '#ed7953'],
 };
 
 const PLOTLY_COLORSCALES: Record<string, Plotly.ColorScale> = {
@@ -50,7 +53,7 @@ const PLOTLY_COLORSCALES: Record<string, Plotly.ColorScale> = {
 
 export function DualChartView({ result, config }: DualChartViewProps) {
   const visualizationType = config?.visualizationType ?? 'line';
-  const colorScheme = config?.colorScheme ?? 'purple';
+  const colorScheme = config?.colorScheme ?? 'plasma';
   const showLegend = config?.showLegend ?? true;
   const colors = COLOR_SCHEMES[colorScheme];
 

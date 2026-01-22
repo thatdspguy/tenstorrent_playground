@@ -98,7 +98,7 @@ export function SweepProgress({ result, onCancel }: SweepProgressProps) {
           <span>
             <span className="text-gray-500">Type:</span>{' '}
             <span className="text-gray-300">
-              {result.sweep_type === '2d' && '2D Surface'}
+              {result.sweep_type === '2d' && '2D Sweep'}
               {result.sweep_type === '1d' && '1D Sweep'}
             </span>
           </span>

@@ -64,7 +64,7 @@ function App() {
   const [chartConfig, setChartConfig] = useState<ChartConfig>({
     visualizationType: 'line',
     showLegend: true,
-    colorScheme: 'purple',
+    colorScheme: 'plasma',
   });
 
   // Fixed parameters (non-swept)

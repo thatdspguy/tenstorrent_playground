@@ -49,9 +49,9 @@ const VISUALIZATION_OPTIONS: { value: VisualizationType; label: string; icon: Re
 ];
 
 const COLOR_SCHEMES = [
-  { value: 'purple', label: 'Purple', colors: ['#7c3aed', '#a78bfa', '#c4b5fd'] },
-  { value: 'viridis', label: 'Viridis', colors: ['#440154', '#21918c', '#fde725'] },
-  { value: 'plasma', label: 'Plasma', colors: ['#0d0887', '#cc4778', '#f0f921'] },
+  { value: 'plasma', label: 'Sunset', colors: ['#bd3786', '#f89540', '#f0f921'] },
+  { value: 'viridis', label: 'Ocean', colors: ['#21918c', '#5ec962', '#fde725'] },
+  { value: 'purple', label: 'Violet', colors: ['#7c3aed', '#a78bfa', '#c4b5fd'] },  
 ] as const;
 
 export function ChartConfigPanel({ config, onChange, is2DSweep }: ChartConfigPanelProps) {
@@ -112,9 +112,9 @@ export function ChartConfigPanel({ config, onChange, is2DSweep }: ChartConfigPan
         </div>
       </div>
 
-      {/* Color Scheme */}
+      {/* Color Theme */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-gray-400">Color Scheme</label>
+        <label className="text-xs font-medium text-gray-400">Color Theme</label>
         <div className="grid grid-cols-3 gap-1">
           {COLOR_SCHEMES.map((scheme) => (
             <button
