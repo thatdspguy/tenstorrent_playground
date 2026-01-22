@@ -412,43 +412,66 @@ class SimulatorService:
 
     def __init__(self):
         self._jobs: dict[str, SimulationJob] = {}
-        self._native_available: bool | None = None  # Cached result for native mode
+        self._simulator_available: dict[str, bool | None] = {
+            "wormhole": None,
+            "blackhole": None,
+        }
 
-    async def check_simulator_available(self) -> bool:
-        """Check if the simulator is available."""
+    async def check_simulator_available(self, chip: str | None = None) -> bool:
+        """Check if the simulator is available for a specific chip or any chip."""
+        if chip:
+            return await self._check_chip_available(chip)
+        # If no chip specified, check if any simulator is available
+        wh_available = await self._check_chip_available("wormhole")
+        bh_available = await self._check_chip_available("blackhole")
+        return wh_available or bh_available
+
+    async def check_all_simulators_available(self) -> dict[str, bool]:
+        """Check availability of all simulators."""
+        return {
+            "wormhole": await self._check_chip_available("wormhole"),
+            "blackhole": await self._check_chip_available("blackhole"),
+        }
+
+    async def _check_chip_available(self, chip: str) -> bool:
+        """Check if a specific chip simulator is available."""
         if USE_NATIVE_MODE:
-            return await self._check_native_available()
+            return await self._check_native_available(chip)
         else:
-            return await self._check_wsl_available()
+            return await self._check_wsl_available(chip)
 
-    async def _check_native_available(self) -> bool:
-        """Check if ttsim is available natively (Linux/Docker)."""
-        if self._native_available is not None:
-            return self._native_available
+    async def _check_native_available(self, chip: str) -> bool:
+        """Check if ttsim is available natively (Linux/Docker) for a specific chip."""
+        if self._simulator_available.get(chip) is not None:
+            return self._simulator_available[chip]
 
         try:
             # Check if simulator library exists
-            simulator_path = os.path.expanduser(settings.tt_metal_simulator)
+            simulator_path = os.path.expanduser(settings.get_simulator_path(chip))
             if not os.path.exists(simulator_path):
-                self._native_available = False
+                self._simulator_available[chip] = False
                 return False
 
             # Try to import ttnn
             import importlib.util
 
             if importlib.util.find_spec("ttnn") is None:
-                self._native_available = False
+                self._simulator_available[chip] = False
                 return False
 
-            self._native_available = True
+            self._simulator_available[chip] = True
             return True
         except Exception:
-            self._native_available = False
+            self._simulator_available[chip] = False
             return False
 
-    async def _check_wsl_available(self) -> bool:
-        """Check if the simulator is available in WSL2."""
+    async def _check_wsl_available(self, chip: str) -> bool:
+        """Check if the simulator is available in WSL2 for a specific chip."""
+        if self._simulator_available.get(chip) is not None:
+            return self._simulator_available[chip]
+
         try:
+            simulator_path = settings.get_simulator_path(chip)
             result = await asyncio.create_subprocess_exec(
                 "wsl",
                 "-d",
@@ -456,13 +479,16 @@ class SimulatorService:
                 "-e",
                 "bash",
                 "-c",
-                f"test -f {settings.tt_metal_simulator} && echo 'OK'",
+                f"test -f {simulator_path} && echo 'OK'",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, _ = await result.communicate()
-            return b"OK" in stdout
+            available = b"OK" in stdout
+            self._simulator_available[chip] = available
+            return available
         except Exception:
+            self._simulator_available[chip] = False
             return False
 
     async def run_simulation(self, request: SimulationRequest) -> SimulationJob:
@@ -488,6 +514,7 @@ class SimulatorService:
             "model_id": request.model_id,
             "batch_size": request.batch_size,
             "iterations": request.iterations,
+            "chip": request.chip,
         }
 
         # Add model-specific params - use passed values or fall back to defaults
@@ -591,10 +618,23 @@ class SimulatorService:
             wsl_config_path = to_wsl_path(config_file)
             wsl_script_path = to_wsl_path(script_file)
 
-            # Build the command
+            # Get simulator path for the requested chip
+            chip = config.get("chip", "wormhole")
+            simulator_path = settings.get_simulator_path(chip)
+            soc_descriptor = settings.get_soc_descriptor(chip)
+
+            # Build the command - first copy the correct SOC descriptor, then run simulation
             full_command = f"""
+# Copy the correct SOC descriptor for the selected chip
+if [ "{chip}" = "blackhole" ]; then
+    cp ~/ttsim/blackhole_soc_descriptor.yaml ~/ttsim/soc_descriptor.yaml 2>/dev/null || \\
+    cp ~/tt-metal/tt_metal/soc_descriptors/{soc_descriptor} ~/ttsim/soc_descriptor.yaml
+else
+    cp ~/tt-metal/tt_metal/soc_descriptors/{soc_descriptor} ~/ttsim/soc_descriptor.yaml
+fi
+
 export TT_METAL_HOME={settings.tt_metal_home}
-export TT_METAL_SIMULATOR={settings.tt_metal_simulator}
+export TT_METAL_SIMULATOR={simulator_path}
 export TT_METAL_SLOW_DISPATCH_MODE=1
 export PATH=$HOME/.local/bin:$PATH
 python3 "{wsl_script_path}" "{wsl_config_path}"
@@ -659,6 +699,7 @@ python3 "{wsl_script_path}" "{wsl_config_path}"
 
     async def _run_native(self, config: dict) -> dict:
         """Execute the simulation natively (Linux/Docker mode)."""
+        import shutil
         import tempfile
 
         # Write config to temp file
@@ -676,10 +717,26 @@ python3 "{wsl_script_path}" "{wsl_config_path}"
             script_file = f.name
 
         try:
+            # Get simulator path for the requested chip
+            chip = config.get("chip", "wormhole")
+            simulator_path = settings.get_simulator_path(chip)
+            simulator_dir = os.path.dirname(os.path.expanduser(simulator_path))
+
+            # Copy the correct SOC descriptor for the selected chip
+            # ttsim requires soc_descriptor.yaml to be in the same directory as the .so file
+            soc_descriptor_target = os.path.join(simulator_dir, "soc_descriptor.yaml")
+            if chip == "blackhole":
+                soc_source = os.path.join(simulator_dir, "blackhole_soc_descriptor.yaml")
+            else:
+                soc_source = os.path.join(simulator_dir, "wormhole_soc_descriptor.yaml")
+
+            if os.path.exists(soc_source):
+                shutil.copy(soc_source, soc_descriptor_target)
+
             # Set environment variables
             env = os.environ.copy()
             env["TT_METAL_HOME"] = os.path.expanduser(settings.tt_metal_home)
-            env["TT_METAL_SIMULATOR"] = os.path.expanduser(settings.tt_metal_simulator)
+            env["TT_METAL_SIMULATOR"] = os.path.expanduser(simulator_path)
             env["TT_METAL_SLOW_DISPATCH_MODE"] = "1"
             env["LOGURU_LEVEL"] = "ERROR"
             env["TT_METAL_LOGGER_LEVEL"] = "ERROR"

@@ -117,9 +117,17 @@ mkdir -p ~/ttsim
 cd ~/ttsim
 
 TTSIM_VERSION="v1.3.0"
+
+# Download Wormhole simulator
 if [ ! -f "libttsim_wh.so" ]; then
     wget -q https://github.com/tenstorrent/ttsim/releases/download/${TTSIM_VERSION}/libttsim_wh.so
     echo "  Downloaded Wormhole simulator"
+fi
+
+# Download Blackhole simulator
+if [ ! -f "libttsim_bh.so" ]; then
+    wget -q https://github.com/tenstorrent/ttsim/releases/download/${TTSIM_VERSION}/libttsim_bh.so
+    echo "  Downloaded Blackhole simulator"
 fi
 
 # Clone tt-metal for SOC descriptors
@@ -128,8 +136,10 @@ if [ ! -d "$HOME/tt-metal" ]; then
     git clone --depth 1 -q https://github.com/tenstorrent/tt-metal.git ~/tt-metal
 fi
 
-# Copy SOC descriptor
+# Copy SOC descriptors for both architectures
 cp ~/tt-metal/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_descriptor.yaml 2>/dev/null || true
+cp ~/tt-metal/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/wormhole_soc_descriptor.yaml 2>/dev/null || true
+cp ~/tt-metal/tt_metal/soc_descriptors/blackhole_140_arch.yaml ~/ttsim/blackhole_soc_descriptor.yaml 2>/dev/null || true
 
 # Install SFPI if not present
 if [ ! -d "/opt/tenstorrent/sfpi" ]; then

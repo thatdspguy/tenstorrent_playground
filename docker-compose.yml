@@ -23,7 +23,8 @@ services:
       - PORT=8000
       - DOCKER_CONTAINER=true
       - TT_METAL_HOME=/opt/tt-metal
-      - TT_METAL_SIMULATOR=/opt/ttsim/libttsim_wh.so
+      - TT_METAL_SIMULATOR_WH=/opt/ttsim/libttsim_wh.so
+      - TT_METAL_SIMULATOR_BH=/opt/ttsim/libttsim_bh.so
       - TT_METAL_SLOW_DISPATCH_MODE=1
       - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://frontend:80"]
     restart: unless-stopped

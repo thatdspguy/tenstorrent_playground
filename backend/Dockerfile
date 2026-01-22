@@ -20,14 +20,18 @@ ENV PATH="/root/.local/bin:$PATH"
 # Install ttsim simulator dependencies
 # ============================================================================
 
-# Download ttsim simulator library
+# Download ttsim simulator libraries (Wormhole and Blackhole)
 RUN mkdir -p /opt/ttsim && \
     wget -q https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so \
-    -O /opt/ttsim/libttsim_wh.so
+    -O /opt/ttsim/libttsim_wh.so && \
+    wget -q https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so \
+    -O /opt/ttsim/libttsim_bh.so
 
 # Clone tt-metal for SOC descriptors (shallow clone, only what's needed)
 RUN git clone --depth 1 https://github.com/tenstorrent/tt-metal.git /opt/tt-metal && \
-    cp /opt/tt-metal/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml /opt/ttsim/soc_descriptor.yaml
+    cp /opt/tt-metal/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml /opt/ttsim/soc_descriptor.yaml && \
+    cp /opt/tt-metal/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml /opt/ttsim/wormhole_soc_descriptor.yaml && \
+    cp /opt/tt-metal/tt_metal/soc_descriptors/blackhole_140_arch.yaml /opt/ttsim/blackhole_soc_descriptor.yaml
 
 # Install SFPI firmware dependencies, libatomic (for ttnn), and SFPI
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -46,6 +50,8 @@ RUN pip install --no-cache-dir ttnn && \
 
 # Set ttsim environment variables
 ENV TT_METAL_HOME=/opt/tt-metal
+ENV TT_METAL_SIMULATOR_WH=/opt/ttsim/libttsim_wh.so
+ENV TT_METAL_SIMULATOR_BH=/opt/ttsim/libttsim_bh.so
 ENV TT_METAL_SIMULATOR=/opt/ttsim/libttsim_wh.so
 ENV TT_METAL_SLOW_DISPATCH_MODE=1
 

@@ -4,10 +4,11 @@ import type {
     ModelInfo,
     ParameterRange,
     SimulationJob,
+    SimulatorAvailability,
     SweepParameter,
     SweepSimulationResult,
 } from './api/types';
-import { ModelSelector, ResultsChart, SimulationStatusDisplay } from './components';
+import { ModelSelector, ResultsChart, SimulationStatusDisplay, SimulatorSelector, type ChipType } from './components';
 import { ChartConfigPanel, type ChartConfig } from './components/ChartConfigPanel';
 import { DualChartView } from './components/DualChartView';
 import { SweepAxisSelector, type ParameterMode } from './components/SweepAxisSelector';
@@ -37,7 +38,8 @@ function App() {
   const [selectedModel, setSelectedModel] = useState<ModelInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
-  const [simulatorAvailable, setSimulatorAvailable] = useState(false);
+  const [simulators, setSimulators] = useState<SimulatorAvailability[]>([]);
+  const [selectedChip, setSelectedChip] = useState<ChipType>('wormhole');
   const [error, setError] = useState<string | null>(null);
 
   // Sweep axis configuration
@@ -84,6 +86,9 @@ function App() {
   const is2DSweep = xIsRange && yIsRange;
   const sweepableParams = selectedModel?.parameters.filter((p) => p.sweepable) || [];
 
+  // Check if the selected chip's simulator is available
+  const isSelectedChipAvailable = simulators.find((s) => s.chip === selectedChip)?.available ?? false;
+
   // ============================================================================
   // Effects
   // ============================================================================
@@ -96,7 +101,14 @@ function App() {
           apiClient.getHealth(),
           apiClient.listModels(),
         ]);
-        setSimulatorAvailable(health.simulator_available);
+        setSimulators(health.simulators || []);
+        
+        // Select first available simulator as default
+        const availableSimulator = health.simulators?.find((s) => s.available);
+        if (availableSimulator) {
+          setSelectedChip(availableSimulator.chip as ChipType);
+        }
+        
         setModels(modelList);
         if (modelList.length > 0) {
           const defaultModel =
@@ -279,6 +291,7 @@ function App() {
           y_axis: yAxis ?? undefined,
           fixed_parameters: fixed,
           iterations: Number(fixedParams.iterations) || 10,
+          chip: selectedChip,
         });
 
         setSweepResult(result);
@@ -294,6 +307,7 @@ function App() {
           batch_size: Number(fixedParams.batch_size) || 1,
           iterations: Number(fixedParams.iterations) || 10,
           parameters: fixedParams,
+          chip: selectedChip,
         });
         setCurrentJob(job);
         setIsRunning(false);
@@ -351,19 +365,18 @@ function App() {
                   Tenstorrent Simulator Playground
                 </h1>
                 <p className="text-sm text-gray-400">
-                  Explore AI models on simulated Wormhole hardware
+                  Explore AI workloads on simulated Tenstorrent hardware
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  simulatorAvailable ? 'bg-green-400' : 'bg-red-400'
-                }`}
-              ></span>
-              <span className="text-sm text-gray-400">
-                {simulatorAvailable ? 'Simulator Ready' : 'Simulator Offline'}
-              </span>
+            <div className="flex items-center gap-4">
+              {/* Simulator Selector */}
+              <SimulatorSelector
+                selectedChip={selectedChip}
+                onSelectChip={setSelectedChip}
+                simulators={simulators}
+                disabled={isRunning}
+              />
             </div>
           </div>
         </div>
@@ -397,9 +410,9 @@ function App() {
                 {/* Row 1: Run Sweep Button - Full Width */}
                 <button
                   onClick={handleRunSimulation}
-                  disabled={isRunning || !simulatorAvailable}
+                  disabled={isRunning || !isSelectedChipAvailable}
                   className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                    isRunning || !simulatorAvailable
+                    isRunning || !isSelectedChipAvailable
                       ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                       : isSweepMode
                         ? 'bg-gradient-to-r from-tt-purple to-indigo-600 hover:from-tt-purple-dark hover:to-indigo-700 text-white shadow-lg shadow-tt-purple/25 hover:shadow-tt-purple/40'

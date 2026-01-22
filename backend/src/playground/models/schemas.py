@@ -126,12 +126,22 @@ class SimulationJob(BaseModel):
     progress: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class SimulatorAvailability(BaseModel):
+    """Availability status for a specific simulator."""
+
+    available: bool
+    chip: str
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 
     status: str
     version: str
-    simulator_available: bool
+    simulator_available: bool  # True if any simulator is available
+    simulators: list[SimulatorAvailability] = Field(
+        default_factory=list, description="Availability status for each simulator"
+    )
 
 
 # ============================================================================

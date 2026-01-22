@@ -21,8 +21,21 @@ class Settings(BaseSettings):
 
     # Simulator Settings
     tt_metal_home: str = "~/tt-metal"
-    tt_metal_simulator: str = "~/ttsim/libttsim_wh.so"
+    tt_metal_simulator_wh: str = "~/ttsim/libttsim_wh.so"
+    tt_metal_simulator_bh: str = "~/ttsim/libttsim_bh.so"
     simulator_timeout: int = 300  # seconds
+
+    def get_simulator_path(self, chip: str) -> str:
+        """Get the simulator library path for the specified chip."""
+        if chip == "blackhole":
+            return self.tt_metal_simulator_bh
+        return self.tt_metal_simulator_wh
+
+    def get_soc_descriptor(self, chip: str) -> str:
+        """Get the SOC descriptor filename for the specified chip."""
+        if chip == "blackhole":
+            return "blackhole_140_arch.yaml"
+        return "wormhole_b0_80_arch.yaml"
 
     # CORS Settings
     cors_origins: list[str] = Field(default=["http://localhost:5173", "http://localhost:3000"])

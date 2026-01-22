@@ -69,10 +69,16 @@ export interface SimulationJob {
   progress: number;
 }
 
+export interface SimulatorAvailability {
+  chip: string;
+  available: boolean;
+}
+
 export interface HealthResponse {
   status: string;
   version: string;
   simulator_available: boolean;
+  simulators: SimulatorAvailability[];
 }
 
 // ============================================================================

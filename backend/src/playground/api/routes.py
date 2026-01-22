@@ -8,6 +8,7 @@ from ..models.schemas import (
     ModelInfo,
     SimulationJob,
     SimulationRequest,
+    SimulatorAvailability,
     SweepSimulationRequest,
     SweepSimulationResult,
 )
@@ -21,8 +22,17 @@ router = APIRouter()
 @router.get("/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
     """Check API health and simulator availability."""
-    simulator_available = await simulator_service.check_simulator_available()
-    return HealthResponse(status="healthy", version=__version__, simulator_available=simulator_available)
+    simulator_status = await simulator_service.check_all_simulators_available()
+    any_available = any(simulator_status.values())
+
+    simulators = [SimulatorAvailability(chip=chip, available=available) for chip, available in simulator_status.items()]
+
+    return HealthResponse(
+        status="healthy",
+        version=__version__,
+        simulator_available=any_available,
+        simulators=simulators,
+    )
 
 
 @router.get("/models", response_model=list[ModelInfo], tags=["Models"])
@@ -52,10 +62,11 @@ async def run_simulation(request: SimulationRequest):
     if not model_registry.exists(request.model_id):
         raise HTTPException(status_code=400, detail=f"Invalid model_id: {request.model_id}")
 
-    # Check simulator availability
-    if not await simulator_service.check_simulator_available():
+    # Check simulator availability for the requested chip
+    if not await simulator_service.check_simulator_available(request.chip):
         raise HTTPException(
-            status_code=503, detail="Simulator not available. Ensure WSL2 and ttsim are properly configured."
+            status_code=503,
+            detail=f"Simulator for {request.chip} not available. Ensure WSL2 and ttsim are properly configured.",
         )
 
     # Run simulation
