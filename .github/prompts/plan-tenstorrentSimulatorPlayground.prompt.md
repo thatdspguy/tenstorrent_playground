@@ -205,23 +205,157 @@ tenstorrent_playground/
 
 ---
 
-## Planned Step: tt-metal Repository Exploration
+## tt-metal Repository Exploration (COMPLETED)
 
-After adding the submodule, we should:
+### Key Findings
 
-1. **Examine build system**: Review `CMakeLists.txt`, `build_metal.sh`, dependencies
-2. **Study simulator/mock modes**: Find mock cluster descriptors, understand configuration
-3. **Review model examples**: Look at `models/demos/` for inference patterns
-4. **Explore TTNN tutorials**: Check `ttnn/tutorials/` for Jupyter notebooks
-5. **Understand Python API**: Study `ttnn/` Python bindings
-6. **Document findings**: Update plan with specific integration approach
+#### 1. Mock Mode Configuration
+Mock mode uses cluster descriptor YAML files. Found at:
+```
+external/tt-metal/tests/tt_metal/tt_fabric/custom_mock_cluster_descriptors/
+```
+Example configurations:
+- `n300_cluster_desc.yaml` - N300 (2x Wormhole)
+- `t3k_cluster_desc.yaml` - TG/T3000 configuration
+- `p100_cluster_desc.yaml` - Single chip
+
+**Usage:**
+```bash
+export TT_METAL_MOCK_CLUSTER_DESC_PATH=path/to/cluster_desc.yaml
+```
+
+#### 2. Simulator Mode
+Requires external simulator binary (not bundled):
+```bash
+export TT_METAL_SIMULATOR=/path/to/simulator
+```
+**Status:** Simulator binary appears to be proprietary/internal. We'll use Mock mode for initial development.
+
+#### 3. Python API (TTNN)
+Clean PyTorch-like API for model inference:
+```python
+import ttnn
+
+device = ttnn.open_device(device_id=0)
+tensor = ttnn.from_torch(torch_tensor, dtype=ttnn.bfloat16, 
+                          layout=ttnn.TILE_LAYOUT, device=device)
+result = ttnn.linear(tensor, weights, bias=bias)
+output = ttnn.to_torch(result)
+ttnn.close_device(device)
+```
+
+#### 4. Model Examples Available
+| Model | Location | Complexity |
+|-------|----------|------------|
+| **MNIST MLP** | `models/demos/mnist/` | Simple (3-layer MLP) |
+| **MobileNetV2** | `models/demos/mobilenetv2/` | Medium (CNN) |
+| **BERT** | `models/demos/bert/` | Complex (Transformer) |
+| **Whisper** | `models/demos/whisper/` | Complex (Speech) |
+
+**MVP Model:** MNIST MLP (simple 3-layer architecture from `ttnn/tutorials/ttnn_mlp_inference_mnist.ipynb`)
+
+#### 5. Performance Profiling
+Built-in profiler available at `tt_metal/tools/profiler/`:
+- Device profiling with Tracy integration
+- Kernel-level performance counters
+- NOC event profiling
+
+#### 6. Hardware Requirements Reality Check
+**IMPORTANT:** tt-metal requires actual Tenstorrent hardware or the simulator binary to run inference. Mock mode is for cluster topology testing, NOT for actual tensor computation.
+
+### Integration Strategy
+
+Given the hardware requirements, our approach will be:
+
+1. **Phase 1 (MVP):** Build UI and backend with **synthetic/mock performance data**
+   - Realistic metrics based on documented benchmarks
+   - API structure ready for real simulator integration
+   
+2. **Phase 2:** Research simulator binary availability
+   - Contact Tenstorrent or check for public simulator releases
+   - Docker images may include simulation capabilities
+   
+3. **Phase 3:** Integrate real simulator when available
+   - Swap mock service for real TTNN calls
 
 ---
 
-## Next Steps (After Answers)
+## Implementation Phases (Updated)
 
-1. Initialize git repository
-2. Configure .gitignore for Python, Node.js, and tt-metal build artifacts
-3. Add tt-metal as submodule (pinned to appropriate version)
-4. Explore tt-metal repository structure
-5. Begin backend scaffolding
+### Phase 4.1 ✅ COMPLETED
+- [x] Initialize git repository
+- [x] Create .gitignore
+- [x] Add tt-metal submodule
+- [x] Create project structure
+- [x] First commit: `chore(repo): initialize repository with project structure`
+
+### Phase 5: Backend Development
+- [ ] `feat(backend): scaffold FastAPI project with uv`
+- [ ] `feat(backend): add model registry with MNIST MLP`
+- [ ] `feat(backend): implement mock simulator service`
+- [ ] `feat(backend): add simulation API endpoints`
+- [ ] `feat(backend): add realistic performance metrics generation`
+
+### Phase 6: Frontend Development  
+- [ ] `feat(frontend): scaffold React + Vite + Tailwind project`
+- [ ] `feat(frontend): add model selection component`
+- [ ] `feat(frontend): add parameter configuration panel`
+- [ ] `feat(frontend): add Chart.js performance visualization`
+- [ ] `feat(frontend): implement API integration`
+
+### Phase 7: Integration & Polish
+- [ ] `feat: integrate frontend with backend`
+- [ ] `feat: add loading states and error handling`
+- [ ] `docs: add development and deployment instructions`
+- [ ] `chore: add demo data and screenshots`
+
+---
+
+## API Design
+
+### Endpoints
+
+```
+GET  /api/models                    # List available models
+GET  /api/models/{id}               # Get model details
+POST /api/simulate                  # Run simulation
+GET  /api/simulate/{job_id}         # Get simulation results
+GET  /api/benchmarks                # Get reference benchmarks
+```
+
+### Schemas
+
+```python
+# Request
+class SimulationRequest(BaseModel):
+    model_id: str
+    batch_size: int = 1
+    input_shape: list[int] | None = None
+    
+# Response
+class SimulationResult(BaseModel):
+    model_id: str
+    batch_size: int
+    metrics: PerformanceMetrics
+    comparison: HardwareComparison
+
+class PerformanceMetrics(BaseModel):
+    latency_ms: float
+    throughput_inferences_per_sec: float
+    memory_usage_mb: float
+    
+class HardwareComparison(BaseModel):
+    simulated: PerformanceMetrics
+    expected_wormhole: PerformanceMetrics
+    expected_blackhole: PerformanceMetrics | None
+```
+
+---
+
+## Next Steps
+
+1. **Scaffold backend** with FastAPI + uv
+2. **Implement model registry** starting with MNIST MLP
+3. **Create mock simulator service** with realistic metrics
+4. **Scaffold frontend** with React + Vite + Tailwind + Chart.js
+5. **Build UI components** for model selection and visualization
