@@ -106,6 +106,7 @@ function App() {
   }, []);
 
   // Initialize fixed params when model changes
+  // Preserve user's parameter settings (mode, start, end, numPoints, scale) across model changes
   useEffect(() => {
     if (selectedModel) {
       const defaults: Record<string, number | string | boolean> = {};
@@ -114,29 +115,48 @@ function App() {
       });
       setFixedParams(defaults);
 
-      // Auto-select first sweepable param for X-axis, second for Y-axis
+      // Get sweepable parameters for the new model
       const sweepable = selectedModel.parameters.filter((p) => p.sweepable);
+      
+      // For X-axis: try to find a matching parameter by name, otherwise use first sweepable
       if (sweepable.length > 0) {
-        const firstParam = sweepable[0];
+        const matchingParam = xAxisConfig.parameterName 
+          ? sweepable.find(p => p.name === xAxisConfig.parameterName)
+          : null;
+        const targetParam = matchingParam || sweepable[0];
+        
         setXAxisConfig((prev) => ({
-          ...prev,
-          parameterName: firstParam.name,
-          mode: 'range',
-          fixedValue: Number(firstParam.default ?? firstParam.min ?? 1),
-          start: Number(firstParam.min ?? 1),
-          end: Number(firstParam.max ?? 100),
+          // Preserve user's settings
+          mode: prev.mode,
+          numPoints: prev.numPoints,
+          scale: prev.scale,
+          start: prev.start,
+          end: prev.end,
+          fixedValue: prev.fixedValue,
+          // Update parameter name to match new model
+          parameterName: targetParam.name,
         }));
       }
-      // Auto-select second sweepable param for Y-axis if available
+      
+      // For Y-axis: try to find a matching parameter by name, otherwise use second sweepable
       if (sweepable.length > 1) {
-        const secondParam = sweepable[1];
+        const matchingParam = yAxisConfig.parameterName 
+          ? sweepable.find(p => p.name === yAxisConfig.parameterName)
+          : null;
+        // Avoid using the same parameter as X-axis
+        const availableParams = sweepable.filter(p => p.name !== xAxisConfig.parameterName);
+        const targetParam = matchingParam || availableParams[0] || sweepable[1];
+        
         setYAxisConfig((prev) => ({
-          ...prev,
-          parameterName: secondParam.name,
-          mode: 'range',
-          fixedValue: Number(secondParam.default ?? secondParam.min ?? 1),
-          start: Number(secondParam.min ?? 1),
-          end: Number(secondParam.max ?? 100),
+          // Preserve user's settings
+          mode: prev.mode,
+          numPoints: prev.numPoints,
+          scale: prev.scale,
+          start: prev.start,
+          end: prev.end,
+          fixedValue: prev.fixedValue,
+          // Update parameter name to match new model
+          parameterName: targetParam.name,
         }));
       } else {
         setYAxisConfig((prev) => ({ ...prev, parameterName: null }));
