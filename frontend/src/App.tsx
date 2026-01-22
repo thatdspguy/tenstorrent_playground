@@ -44,19 +44,19 @@ function App() {
     parameterName: null,
     mode: 'range',
     fixedValue: 32,
-    start: 32,
-    end: 512,
-    numPoints: 5,
-    scale: 'linear',
+    start: 2,
+    end: 128,
+    numPoints: 7,
+    scale: 'logarithmic',
   });
   const [yAxisConfig, setYAxisConfig] = useState<AxisConfig>({
     parameterName: null,
     mode: 'range',
     fixedValue: 1,
-    start: 1,
-    end: 16,
-    numPoints: 4,
-    scale: 'linear',
+    start: 2,
+    end: 128,
+    numPoints: 7,
+    scale: 'logarithmic',
   });
 
   // Fixed parameters (non-swept)
