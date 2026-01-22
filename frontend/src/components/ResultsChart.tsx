@@ -120,7 +120,7 @@ export function ResultsChart({ result }: ResultsChartProps) {
       <h3 className="text-lg font-semibold text-white">Performance Results</h3>
 
       {/* Metrics summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <MetricCard
           label="Latency"
           value={`${metrics.latency_ms.toFixed(2)} ms`}
@@ -132,14 +132,9 @@ export function ResultsChart({ result }: ResultsChartProps) {
           subtext="inferences/sec"
         />
         <MetricCard
-          label="Memory"
-          value={`${metrics.memory_usage_mb.toFixed(1)} MB`}
-          subtext="estimated"
-        />
-        <MetricCard
           label="Speedup"
           value={`${comparison.speedup_factor}×`}
-          subtext="vs silicon"
+          subtext="expected vs silicon"
           highlight
         />
       </div>
@@ -179,15 +174,33 @@ export function ResultsChart({ result }: ResultsChartProps) {
         </div>
       </div>
 
-      {/* Output sample */}
+      {/* Output verification */}
       {result.output_sample && result.output_sample.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-4">
           <h4 className="text-sm font-medium text-gray-400 mb-2">
-            Output Sample
+            Output Verification
           </h4>
-          <code className="text-sm text-tt-purple-light font-mono">
-            [{result.output_sample.map((v) => v.toFixed(4)).join(', ')}]
+          <p className="text-xs text-gray-500 mb-2">
+            First 2 values from the output tensor (proof the simulation ran on ttsim):
+          </p>
+          <code className="text-sm text-tt-purple-light font-mono bg-gray-900 px-3 py-2 rounded block">
+            result[0:2] = [{result.output_sample.map((v) => v.toFixed(4)).join(', ')}]
           </code>
+          {result.model_id === 'add_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">✓ Expected: 3.0 (1.0 + 2.0)</p>
+          )}
+          {result.model_id === 'multiply_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">✓ Expected: 6.0 (2.0 × 3.0)</p>
+          )}
+          {result.model_id === 'exp_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">✓ Expected: ~2.718 (e¹)</p>
+          )}
+          {result.model_id === 'relu_benchmark' && (
+            <p className="text-xs text-gray-400 mt-2">Random input → ReLU (negatives become 0)</p>
+          )}
+          {result.model_id === 'chain_benchmark' && (
+            <p className="text-xs text-gray-400 mt-2">Random input → Add 0.5 → ReLU → Multiply by 2</p>
+          )}
         </div>
       )}
     </div>
