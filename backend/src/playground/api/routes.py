@@ -1,16 +1,16 @@
 """API routes for the playground backend."""
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
+
+from .. import __version__
 from ..models.schemas import (
-    ModelInfo,
-    SimulationRequest,
-    SimulationResult,
-    SimulationJob,
     HealthResponse,
+    ModelInfo,
+    SimulationJob,
+    SimulationRequest,
 )
 from ..services.model_registry import model_registry
 from ..services.simulator import simulator_service
-from .. import __version__
 
 router = APIRouter()
 
@@ -19,11 +19,7 @@ router = APIRouter()
 async def health_check():
     """Check API health and simulator availability."""
     simulator_available = await simulator_service.check_simulator_available()
-    return HealthResponse(
-        status="healthy",
-        version=__version__,
-        simulator_available=simulator_available
-    )
+    return HealthResponse(status="healthy", version=__version__, simulator_available=simulator_available)
 
 
 @router.get("/models", response_model=list[ModelInfo], tags=["Models"])
@@ -45,24 +41,20 @@ async def get_model(model_id: str):
 async def run_simulation(request: SimulationRequest):
     """
     Run a simulation with the specified model and parameters.
-    
+
     The simulation runs on the ttsim simulator in WSL2.
     Returns a job with status and results when complete.
     """
     # Validate model exists
     if not model_registry.exists(request.model_id):
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid model_id: {request.model_id}"
-        )
-    
+        raise HTTPException(status_code=400, detail=f"Invalid model_id: {request.model_id}")
+
     # Check simulator availability
     if not await simulator_service.check_simulator_available():
         raise HTTPException(
-            status_code=503,
-            detail="Simulator not available. Ensure WSL2 and ttsim are properly configured."
+            status_code=503, detail="Simulator not available. Ensure WSL2 and ttsim are properly configured."
         )
-    
+
     # Run simulation
     job = await simulator_service.run_simulation(request)
     return job

@@ -3,14 +3,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
-from .api.routes import router
 from . import __version__
+from .api.routes import router
+from .config import settings
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    
+
     app = FastAPI(
         title=settings.app_name,
         description="""
@@ -54,12 +54,7 @@ A web-based playground for demonstrating Tenstorrent developer tooling using the
     @app.get("/", tags=["Root"])
     async def root():
         """Root endpoint with API information."""
-        return {
-            "name": settings.app_name,
-            "version": __version__,
-            "docs": "/docs",
-            "api": "/api"
-        }
+        return {"name": settings.app_name, "version": __version__, "docs": "/docs", "api": "/api"}
 
     return app
 

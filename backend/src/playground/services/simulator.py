@@ -1,27 +1,23 @@
 """Simulator service for running models on ttsim via WSL2."""
 
 import asyncio
-import subprocess
 import json
-import time
 import uuid
 from datetime import datetime
-from pathlib import Path
 
 from ..config import settings
 from ..models.schemas import (
+    HardwareComparison,
+    PerformanceMetrics,
+    SimulationJob,
     SimulationRequest,
     SimulationResult,
-    SimulationJob,
     SimulationStatus,
-    PerformanceMetrics,
-    HardwareComparison,
 )
 from .model_registry import model_registry
 
-
 # Python script template to run in WSL2
-SIMULATION_SCRIPT = '''
+SIMULATION_SCRIPT = """
 import os
 import sys
 import warnings
@@ -220,7 +216,7 @@ except Exception as e:
 print("###RESULT_START###")
 print(json.dumps(results))
 print("###RESULT_END###")
-'''
+"""
 
 
 class SimulatorService:
@@ -233,10 +229,15 @@ class SimulatorService:
         """Check if the simulator is available in WSL2."""
         try:
             result = await asyncio.create_subprocess_exec(
-                "wsl", "-d", settings.wsl_distro, "-e", "bash", "-c",
+                "wsl",
+                "-d",
+                settings.wsl_distro,
+                "-e",
+                "bash",
+                "-c",
                 f"test -f {settings.tt_metal_simulator} && echo 'OK'",
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, _ = await result.communicate()
             return b"OK" in stdout
@@ -245,17 +246,14 @@ class SimulatorService:
 
     async def run_simulation(self, request: SimulationRequest) -> SimulationJob:
         """Run a simulation and return a job with results."""
-        
+
         # Create job
         job_id = str(uuid.uuid4())[:8]
         job = SimulationJob(
-            job_id=job_id,
-            status=SimulationStatus.PENDING,
-            request=request,
-            created_at=datetime.utcnow()
+            job_id=job_id, status=SimulationStatus.PENDING, request=request, created_at=datetime.utcnow()
         )
         self._jobs[job_id] = job
-        
+
         # Get model info
         model = model_registry.get(request.model_id)
         if not model:
@@ -263,14 +261,14 @@ class SimulatorService:
             job.error = f"Model not found: {request.model_id}"
             job.completed_at = datetime.utcnow()
             return job
-        
+
         # Prepare configuration
         config = {
             "model_id": request.model_id,
             "batch_size": request.batch_size,
             "iterations": request.iterations,
         }
-        
+
         # Add model-specific params
         for param in model.parameters:
             if param.name not in config:
@@ -283,10 +281,10 @@ class SimulatorService:
         try:
             # Run simulation in WSL2
             result = await self._run_in_wsl(config)
-            
+
             if result.get("success"):
                 metrics = PerformanceMetrics(**result["metrics"])
-                
+
                 # Create comparison with estimated silicon performance
                 # Silicon is typically 50-200x faster than simulation
                 speedup = 100.0  # Conservative estimate
@@ -295,15 +293,13 @@ class SimulatorService:
                     throughput_inferences_per_sec=round(metrics.throughput_inferences_per_sec * speedup, 2),
                     memory_usage_mb=metrics.memory_usage_mb,
                     total_time_ms=round(metrics.total_time_ms / speedup, 4),
-                    iterations=metrics.iterations
+                    iterations=metrics.iterations,
                 )
-                
+
                 comparison = HardwareComparison(
-                    simulated=metrics,
-                    expected_silicon=expected_silicon,
-                    speedup_factor=speedup
+                    simulated=metrics, expected_silicon=expected_silicon, speedup_factor=speedup
                 )
-                
+
                 job.result = SimulationResult(
                     model_id=request.model_id,
                     model_name=model.name,
@@ -311,43 +307,42 @@ class SimulatorService:
                     chip=request.chip,
                     metrics=metrics,
                     comparison=comparison,
-                    output_sample=result.get("output_sample")
+                    output_sample=result.get("output_sample"),
                 )
                 job.status = SimulationStatus.COMPLETED
             else:
                 job.status = SimulationStatus.FAILED
                 job.error = result.get("error", "Unknown error")
-                
+
         except asyncio.TimeoutError:
             job.status = SimulationStatus.FAILED
             job.error = f"Simulation timed out after {settings.simulator_timeout} seconds"
         except Exception as e:
             job.status = SimulationStatus.FAILED
             job.error = str(e)
-        
+
         job.completed_at = datetime.utcnow()
         job.progress = 1.0
         return job
 
     async def _run_in_wsl(self, config: dict) -> dict:
         """Execute the simulation script in WSL2."""
-        import tempfile
         import os
-        
+        import tempfile
+
         # Create temporary files for script and config
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config, f)
             config_file = f.name
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             # Modify script to read config from file
             modified_script = SIMULATION_SCRIPT.replace(
-                "config = json.loads(sys.argv[1])",
-                "config = json.load(open(sys.argv[1]))"
+                "config = json.loads(sys.argv[1])", "config = json.load(open(sys.argv[1]))"
             )
             f.write(modified_script)
             script_file = f.name
-        
+
         try:
             # Convert Windows paths to WSL paths
             # C:\Users\... -> /mnt/c/Users/...
@@ -357,10 +352,10 @@ class SimulatorService:
                     drive = path[0].lower()
                     return f"/mnt/{drive}{path[2:]}"
                 return path
-            
+
             wsl_config_path = to_wsl_path(config_file)
             wsl_script_path = to_wsl_path(script_file)
-            
+
             # Build the command
             full_command = f"""
 export TT_METAL_HOME={settings.tt_metal_home}
@@ -369,30 +364,33 @@ export TT_METAL_SLOW_DISPATCH_MODE=1
 export PATH=$HOME/.local/bin:$PATH
 python3 "{wsl_script_path}" "{wsl_config_path}"
 """
-            
+
             process = await asyncio.create_subprocess_exec(
-                "wsl", "-d", settings.wsl_distro, "-e", "bash", "-c", full_command,
+                "wsl",
+                "-d",
+                settings.wsl_distro,
+                "-e",
+                "bash",
+                "-c",
+                full_command,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
-            
+
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=settings.simulator_timeout
-                )
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=settings.simulator_timeout)
             except asyncio.TimeoutError:
                 process.kill()
                 raise
-            
+
             # Parse output - look for JSON between markers
             output = stdout.decode("utf-8")
             stderr_text = stderr.decode("utf-8")
-            
+
             # Look for the result between markers
             start_marker = "###RESULT_START###"
             end_marker = "###RESULT_END###"
-            
+
             if start_marker in output and end_marker in output:
                 start_idx = output.index(start_marker) + len(start_marker)
                 end_idx = output.index(end_marker)
@@ -400,11 +398,8 @@ python3 "{wsl_script_path}" "{wsl_config_path}"
                 try:
                     return json.loads(json_str)
                 except json.JSONDecodeError as e:
-                    return {
-                        "success": False,
-                        "error": f"JSON parse error: {e}. JSON: {json_str[:200]}"
-                    }
-            
+                    return {"success": False, "error": f"JSON parse error: {e}. JSON: {json_str[:200]}"}
+
             # Fallback: look for JSON in output (last line that looks like JSON)
             for line in reversed(output.strip().split("\n")):
                 line = line.strip()
@@ -413,11 +408,11 @@ python3 "{wsl_script_path}" "{wsl_config_path}"
                         return json.loads(line)
                     except json.JSONDecodeError:
                         continue
-            
+
             # If no JSON found, return error with more details
             return {
                 "success": False,
-                "error": f"Failed to parse simulation output. Stdout: {output[:300]}. Stderr: {stderr_text[:300]}"
+                "error": f"Failed to parse simulation output. Stdout: {output[:300]}. Stderr: {stderr_text[:300]}",
             }
         finally:
             # Clean up temporary files
@@ -433,11 +428,7 @@ python3 "{wsl_script_path}" "{wsl_config_path}"
 
     def list_jobs(self, limit: int = 10) -> list[SimulationJob]:
         """List recent jobs."""
-        jobs = sorted(
-            self._jobs.values(),
-            key=lambda j: j.created_at,
-            reverse=True
-        )
+        jobs = sorted(self._jobs.values(), key=lambda j: j.created_at, reverse=True)
         return jobs[:limit]
 
 

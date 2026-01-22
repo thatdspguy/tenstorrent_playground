@@ -1,8 +1,7 @@
 """Configuration settings for the playground backend."""
 
-from pydantic_settings import BaseSettings
 from pydantic import Field
-from pathlib import Path
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -16,7 +15,7 @@ class Settings(BaseSettings):
 
     # WSL2 Settings
     wsl_distro: str = "Ubuntu"
-    
+
     # Simulator Settings
     tt_metal_home: str = "~/tt-metal"
     tt_metal_simulator: str = "~/ttsim/libttsim_wh.so"

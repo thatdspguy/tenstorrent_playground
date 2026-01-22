@@ -1,12 +1,14 @@
 """Pydantic schemas for API requests and responses."""
 
-from enum import Enum
-from pydantic import BaseModel, Field
 from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel, Field
 
 
 class SimulationStatus(str, Enum):
     """Status of a simulation job."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -15,6 +17,7 @@ class SimulationStatus(str, Enum):
 
 class ModelParameter(BaseModel):
     """A configurable parameter for a model."""
+
     name: str
     display_name: str
     description: str
@@ -27,6 +30,7 @@ class ModelParameter(BaseModel):
 
 class ModelInfo(BaseModel):
     """Information about an available model."""
+
     id: str
     name: str
     description: str
@@ -40,6 +44,7 @@ class ModelInfo(BaseModel):
 
 class SimulationRequest(BaseModel):
     """Request to run a simulation."""
+
     model_id: str
     batch_size: int = Field(default=1, ge=1, le=128)
     input_shape: list[int] | None = None
@@ -49,6 +54,7 @@ class SimulationRequest(BaseModel):
 
 class PerformanceMetrics(BaseModel):
     """Performance metrics from a simulation."""
+
     latency_ms: float = Field(description="Average latency per inference in milliseconds")
     throughput_inferences_per_sec: float = Field(description="Inferences per second")
     memory_usage_mb: float = Field(description="Peak memory usage in megabytes")
@@ -58,30 +64,27 @@ class PerformanceMetrics(BaseModel):
 
 class HardwareComparison(BaseModel):
     """Comparison between simulated and expected hardware performance."""
+
     simulated: PerformanceMetrics
     expected_silicon: PerformanceMetrics | None = None
-    speedup_factor: float | None = Field(
-        default=None, 
-        description="Expected speedup on real silicon vs simulation"
-    )
+    speedup_factor: float | None = Field(default=None, description="Expected speedup on real silicon vs simulation")
 
 
 class SimulationResult(BaseModel):
     """Result of a completed simulation."""
+
     model_id: str
     model_name: str
     batch_size: int
     chip: str
     metrics: PerformanceMetrics
     comparison: HardwareComparison | None = None
-    output_sample: list[float] | None = Field(
-        default=None, 
-        description="Sample output values for verification"
-    )
+    output_sample: list[float] | None = Field(default=None, description="Sample output values for verification")
 
 
 class SimulationJob(BaseModel):
     """A simulation job with status tracking."""
+
     job_id: str
     status: SimulationStatus
     request: SimulationRequest
@@ -94,6 +97,7 @@ class SimulationJob(BaseModel):
 
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str
     version: str
     simulator_available: bool
