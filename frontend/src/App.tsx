@@ -58,6 +58,7 @@ function App() {
     try {
       const job = await apiClient.runSimulation({
         model_id: selectedModel.id,
+        batch_size: Number(parameters.batch_size) || 1,
         iterations: Number(parameters.iterations) || 10,
         parameters,
       });

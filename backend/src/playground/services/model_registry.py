@@ -47,7 +47,7 @@ def get_estimated_speedup(model_id: str) -> float:
 
 
 def _make_standard_params(description_suffix: str = "operations") -> list[ModelParameter]:
-    """Create standard matrix_size and iterations parameters."""
+    """Create standard matrix_size, batch_size, and iterations parameters."""
     return [
         ModelParameter(
             name="matrix_size",
@@ -55,7 +55,15 @@ def _make_standard_params(description_suffix: str = "operations") -> list[ModelP
             description="Size of square tensors (NxN)",
             type="select",
             default=32,
-            options=["32", "64", "128", "256"],
+            options=["32", "64", "128", "256", "512", "1024"],
+        ),
+        ModelParameter(
+            name="batch_size",
+            display_name="Batch Size",
+            description="Number of tensors to process in parallel",
+            type="select",
+            default=1,
+            options=["1", "2", "4", "8", "16", "32"],
         ),
         ModelParameter(
             name="iterations",

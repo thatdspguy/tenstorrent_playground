@@ -14,7 +14,7 @@ from ..models.schemas import (
     SimulationResult,
     SimulationStatus,
 )
-from .model_registry import model_registry
+from .model_registry import get_estimated_speedup, model_registry
 
 # Python script template to run in WSL2
 SIMULATION_SCRIPT = """
@@ -458,15 +458,27 @@ class SimulatorService:
             "iterations": request.iterations,
         }
 
-        # Add model-specific params
+        # Add model-specific params - use passed values or fall back to defaults
         for param in model.parameters:
-            if param.name not in config:
+            # Check if value was passed in request.parameters
+            if request.parameters and param.name in request.parameters:
+                # Convert string values to appropriate types for select params
+                value = request.parameters[param.name]
+                if param.type == "select" and isinstance(value, str):
+                    # Try to convert to int if it looks like a number
+                    try:
+                        value = int(value)
+                    except ValueError:
+                        pass
+                config[param.name] = value
+            else:
                 config[param.name] = param.default
 
         # DEBUG: Log simulation parameters to console
         print(f"[DEBUG] Starting simulation for job {job_id}")
         print(f"[DEBUG] Model: {request.model_id}")
-        print(f"[DEBUG] Config: {config}")
+        print(f"[DEBUG] Request parameters: {request.parameters}")
+        print(f"[DEBUG] Final config: {config}")
 
         # Update status
         job.status = SimulationStatus.RUNNING
@@ -482,7 +494,7 @@ class SimulatorService:
                 # Get operation-specific estimated speedup
                 # Note: These are ESTIMATES - actual values require silicon hardware measurements
                 speedup = get_estimated_speedup(request.model_id)
-                
+
                 expected_silicon = PerformanceMetrics(
                     latency_ms=round(metrics.latency_ms / speedup, 4),
                     throughput_inferences_per_sec=round(metrics.throughput_inferences_per_sec * speedup, 2),

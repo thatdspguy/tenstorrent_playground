@@ -50,6 +50,9 @@ class SimulationRequest(BaseModel):
     input_shape: list[int] | None = None
     chip: str = Field(default="wormhole", pattern="^(wormhole|blackhole)$")
     iterations: int = Field(default=10, ge=1, le=100)
+    parameters: dict[str, int | float | str | bool] | None = Field(
+        default=None, description="Model-specific parameters (e.g., matrix_size)"
+    )
 
 
 class PerformanceMetrics(BaseModel):
