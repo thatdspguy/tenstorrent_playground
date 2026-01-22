@@ -1,3 +1,4 @@
+export { ChartConfigPanel, type ChartConfig, type VisualizationType } from './ChartConfigPanel';
 export { DualChartView } from './DualChartView';
 export { FixedParametersPanel } from './FixedParametersPanel';
 export { ModelSelector } from './ModelSelector';
@@ -8,4 +9,3 @@ export { SimulationStatusDisplay } from './SimulationStatus';
 export { SweepAxisSelector, type RangeConfig } from './SweepAxisSelector';
 export { SweepProgress } from './SweepProgress';
 export { SweepResultsChart } from './SweepResultsChart';
-

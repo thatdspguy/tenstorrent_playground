@@ -8,6 +8,7 @@ import type {
     SweepSimulationResult,
 } from './api/types';
 import { ModelSelector, ResultsChart, SimulationStatusDisplay } from './components';
+import { ChartConfigPanel, type ChartConfig } from './components/ChartConfigPanel';
 import { DualChartView } from './components/DualChartView';
 import { SweepAxisSelector, type ParameterMode } from './components/SweepAxisSelector';
 import { SweepProgress } from './components/SweepProgress';
@@ -57,6 +58,13 @@ function App() {
     end: 128,
     numPoints: 7,
     scale: 'logarithmic',
+  });
+
+  // Chart configuration
+  const [chartConfig, setChartConfig] = useState<ChartConfig>({
+    visualizationType: 'line',
+    showLegend: true,
+    colorScheme: 'purple',
   });
 
   // Fixed parameters (non-swept)
@@ -520,9 +528,25 @@ function App() {
             <SweepProgress result={sweepResult} onCancel={handleCancelSweep} />
           )}
 
-          {/* Sweep Results - Dual Chart View */}
+          {/* Sweep Results - Chart Config + Dual Chart View */}
           {sweepResult && sweepResult.status === 'completed' && sweepResult.data_points.length > 0 && (
-            <DualChartView result={sweepResult} />
+            <div className="flex gap-4">
+              {/* Chart Configuration Panel */}
+              <div className="flex-shrink-0 w-56">
+                <ChartConfigPanel
+                  config={chartConfig}
+                  onChange={setChartConfig}
+                  is2DSweep={sweepResult.sweep_type === '2d'}
+                />
+              </div>
+              {/* Charts */}
+              <div className="flex-1 min-w-0">
+                <DualChartView 
+                  result={sweepResult} 
+                  config={chartConfig}
+                />
+              </div>
+            </div>
           )}
 
           {/* Single Simulation Status */}
