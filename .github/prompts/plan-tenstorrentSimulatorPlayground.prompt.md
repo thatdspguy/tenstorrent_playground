@@ -224,12 +224,40 @@ Example configurations:
 export TT_METAL_MOCK_CLUSTER_DESC_PATH=path/to/cluster_desc.yaml
 ```
 
-#### 2. Simulator Mode
-Requires external simulator binary (not bundled):
+#### 2. Simulator Mode (ttsim) ✅ AVAILABLE!
+The Tenstorrent simulator is publicly available at: https://github.com/tenstorrent/ttsim
+
+**Latest Version:** v1.3.0 (released Jan 2026)
+
+**Supported Chips:**
+- Wormhole (`libttsim_wh.so`) - More mature
+- Blackhole (`libttsim_bh.so`)
+
+**Requirements:**
+- Linux/x86_64 only (WSL2 works!)
+- TT-Metalium installed and built
+- Must use `TT_METAL_SLOW_DISPATCH_MODE=1`
+
+**Installation:**
 ```bash
-export TT_METAL_SIMULATOR=/path/to/simulator
+# In WSL2
+mkdir -p ~/ttsim
+cd ~/ttsim
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so
+
+# Copy SOC descriptor (required - must be in same directory as .so)
+cp $TT_METAL_HOME/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_descriptor.yaml
+
+# Set environment variables
+export TT_METAL_SIMULATOR=~/ttsim/libttsim_wh.so
+export TT_METAL_SLOW_DISPATCH_MODE=1
 ```
-**Status:** Simulator binary appears to be proprietary/internal. We'll use Mock mode for initial development.
+
+**Known Limitations:**
+- Fast dispatch not working (must use slow dispatch)
+- Slower than real silicon but fast enough for development
+- Bit-exact numerical results (matches hardware)
 
 #### 3. Python API (TTNN)
 Clean PyTorch-like API for model inference:
@@ -265,18 +293,127 @@ Built-in profiler available at `tt_metal/tools/profiler/`:
 
 ### Integration Strategy
 
-Given the hardware requirements, our approach will be:
+Given the simulator is now available, our updated approach:
 
-1. **Phase 1 (MVP):** Build UI and backend with **synthetic/mock performance data**
-   - Realistic metrics based on documented benchmarks
-   - API structure ready for real simulator integration
+1. **Phase 4.2 (NEW):** Set up WSL2 environment with tt-metal and ttsim
+   - Install tt-metal from source or wheel
+   - Download and configure ttsim
+   - Verify simulator works with simple example
    
-2. **Phase 2:** Research simulator binary availability
-   - Contact Tenstorrent or check for public simulator releases
-   - Docker images may include simulation capabilities
+2. **Phase 5:** Build backend that interfaces with real simulator
+   - Use subprocess to call Python scripts in WSL2
+   - Or run entire backend in WSL2
    
-3. **Phase 3:** Integrate real simulator when available
-   - Swap mock service for real TTNN calls
+3. **Phase 6:** Build frontend with real performance data
+
+---
+
+## Phase 4.2: WSL2 + tt-metal + ttsim Setup
+
+### Prerequisites
+Ensure WSL2 is installed with Ubuntu 22.04:
+```powershell
+wsl --install -d Ubuntu-22.04
+```
+
+### Step 1: Install System Dependencies (in WSL2)
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    wget \
+    curl \
+    python3 \
+    python3-pip \
+    python3-venv \
+    clang-17 \
+    libyaml-cpp-dev \
+    libhwloc-dev \
+    libgtest-dev \
+    libgmock-dev \
+    libboost-all-dev
+```
+
+### Step 2: Install uv (Python tooling)
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc
+```
+
+### Step 3: Install tt-metal (Option A: From Wheel - Simpler)
+```bash
+# Create virtual environment
+python3 -m venv ~/tt-env
+source ~/tt-env/bin/activate
+
+# Install ttnn
+pip install ttnn
+
+# Set TT_METAL_HOME (needed for SOC descriptors)
+# Clone just for the descriptor files
+git clone --depth 1 https://github.com/tenstorrent/tt-metal.git ~/tt-metal
+export TT_METAL_HOME=~/tt-metal
+```
+
+### Step 3 (Alternative): Install tt-metal (Option B: From Source - Full)
+```bash
+cd ~
+git clone https://github.com/tenstorrent/tt-metal.git --recurse-submodules
+cd tt-metal
+export TT_METAL_HOME=$(pwd)
+
+# Install dependencies
+./install_dependencies.sh
+
+# Build
+./build_metal.sh
+
+# Create Python environment
+./create_venv.sh
+source python_env/bin/activate
+```
+
+### Step 4: Download and Configure ttsim
+```bash
+# Create simulator directory
+mkdir -p ~/ttsim
+cd ~/ttsim
+
+# Download simulator binaries (v1.3.0)
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so
+
+# Copy SOC descriptor (REQUIRED - must be in same dir as .so)
+cp $TT_METAL_HOME/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_descriptor.yaml
+
+# Set environment variables (add to ~/.bashrc for persistence)
+echo 'export TT_METAL_HOME=~/tt-metal' >> ~/.bashrc
+echo 'export TT_METAL_SIMULATOR=~/ttsim/libttsim_wh.so' >> ~/.bashrc
+echo 'export TT_METAL_SLOW_DISPATCH_MODE=1' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Step 5: Verify Simulator Works
+```bash
+# Test with a simple Python script
+python3 << 'EOF'
+import ttnn
+print("TTNN imported successfully!")
+print(f"TTNN version: {ttnn.__version__ if hasattr(ttnn, '__version__') else 'N/A'}")
+
+# Try to open device (this will use simulator)
+try:
+    device = ttnn.open_device(device_id=0)
+    print(f"Device opened successfully: {device}")
+    ttnn.close_device(device)
+    print("Simulator is working!")
+except Exception as e:
+    print(f"Error: {e}")
+EOF
+```
 
 ---
 
@@ -289,12 +426,20 @@ Given the hardware requirements, our approach will be:
 - [x] Create project structure
 - [x] First commit: `chore(repo): initialize repository with project structure`
 
+### Phase 4.2: WSL2 + Simulator Setup
+- [ ] Install tt-metal dependencies in WSL2
+- [ ] Install ttnn (via wheel or source)
+- [ ] Download ttsim v1.3.0 binaries
+- [ ] Configure SOC descriptor
+- [ ] Verify simulator with test script
+- [ ] Commit: `chore(deps): configure ttsim simulator in WSL2`
+
 ### Phase 5: Backend Development
 - [ ] `feat(backend): scaffold FastAPI project with uv`
 - [ ] `feat(backend): add model registry with MNIST MLP`
-- [ ] `feat(backend): implement mock simulator service`
+- [ ] `feat(backend): implement simulator service (real ttsim integration)`
 - [ ] `feat(backend): add simulation API endpoints`
-- [ ] `feat(backend): add realistic performance metrics generation`
+- [ ] `feat(backend): add performance metrics collection`
 
 ### Phase 6: Frontend Development  
 - [ ] `feat(frontend): scaffold React + Vite + Tailwind project`
