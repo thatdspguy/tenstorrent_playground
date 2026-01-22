@@ -15,7 +15,6 @@ function App() {
   const [parameters, setParameters] = useState<
     Record<string, number | string | boolean>
   >({});
-  const [iterations, setIterations] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [currentJob, setCurrentJob] = useState<SimulationJob | null>(null);
@@ -59,7 +58,7 @@ function App() {
     try {
       const job = await apiClient.runSimulation({
         model_id: selectedModel.id,
-        iterations,
+        iterations: Number(parameters.iterations) || 10,
         parameters,
       });
       setCurrentJob(job);
@@ -72,10 +71,10 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="h-screen flex flex-col bg-gray-900 overflow-hidden">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
+      <header className="flex-shrink-0 bg-gray-800 border-b border-gray-700">
+        <div className="px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-tt-purple to-tt-purple-dark flex items-center justify-center">
@@ -117,18 +116,18 @@ function App() {
       </header>
 
       {/* Main content */}
-      <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <main className="flex-1 overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-lg text-red-300">
+          <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300 text-sm">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Left column: Model selection and parameters */}
-          <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+          <div className="lg:col-span-3 flex flex-col gap-4 overflow-auto">
             {/* Model selector */}
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <ModelSelector
                 models={models}
                 selectedModel={selectedModel}
@@ -137,43 +136,20 @@ function App() {
               />
             </div>
 
-            {/* Parameters */}
+            {/* Parameters + Run button */}
             {selectedModel && (
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <ParameterConfig
                   model={selectedModel}
                   values={parameters}
                   onChange={setParameters}
                 />
 
-                {/* Iterations slider */}
-                <div className="mt-6 space-y-2">
-                  <label className="text-sm font-medium text-gray-300">
-                    Iterations
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={1}
-                      max={50}
-                      value={iterations}
-                      onChange={(e) => setIterations(Number(e.target.value))}
-                      className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-tt-purple"
-                    />
-                    <span className="w-12 text-center text-white">
-                      {iterations}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Number of times to run the model for timing
-                  </p>
-                </div>
-
                 {/* Run button */}
                 <button
                   onClick={handleRunSimulation}
                   disabled={isRunning || !simulatorAvailable}
-                  className={`mt-6 w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
+                  className={`mt-4 w-full py-2.5 px-4 rounded-lg font-medium transition-all duration-200 ${
                     isRunning || !simulatorAvailable
                       ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                       : 'bg-tt-purple hover:bg-tt-purple-dark text-white shadow-lg shadow-tt-purple/25 hover:shadow-tt-purple/40'
@@ -193,7 +169,7 @@ function App() {
           </div>
 
           {/* Right column: Results */}
-          <div className="lg:col-span-8 xl:col-span-9 space-y-6">
+          <div className="lg:col-span-9 flex flex-col gap-4 overflow-auto">
             {/* Status */}
             <SimulationStatusDisplay job={currentJob} isRunning={isRunning} />
 
@@ -206,10 +182,10 @@ function App() {
 
             {/* Empty state */}
             {!currentJob && !isRunning && (
-              <div className="bg-gray-800 rounded-lg p-12 border border-gray-700 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-700 flex items-center justify-center">
+              <div className="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center flex-1 flex flex-col items-center justify-center">
+                <div className="w-12 h-12 mb-3 rounded-full bg-gray-700 flex items-center justify-center">
                   <svg
-                    className="w-8 h-8 text-gray-500"
+                    className="w-6 h-6 text-gray-500"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -222,13 +198,11 @@ function App() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium text-white mb-2">
+                <h3 className="text-base font-medium text-white mb-1">
                   Ready to Simulate
                 </h3>
-                <p className="text-gray-400 max-w-md mx-auto">
-                  Select a model, configure parameters, and click "Run
-                  Simulation" to see performance metrics on simulated Tenstorrent
-                  hardware.
+                <p className="text-gray-400 text-sm max-w-sm">
+                  Select a model, configure parameters, and click "Run Simulation"
                 </p>
               </div>
             )}
@@ -237,29 +211,27 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-gray-800 bg-gray-900">
-        <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-gray-500">
-            Powered by{' '}
-            <a
-              href="https://github.com/tenstorrent/ttsim"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-tt-purple-light hover:text-tt-purple"
-            >
-              ttsim
-            </a>{' '}
-            and{' '}
-            <a
-              href="https://github.com/tenstorrent/tt-metal"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-tt-purple-light hover:text-tt-purple"
-            >
-              tt-metal
-            </a>
-          </p>
-        </div>
+      <footer className="flex-shrink-0 border-t border-gray-800 bg-gray-900 py-2">
+        <p className="text-center text-xs text-gray-500">
+          Powered by{' '}
+          <a
+            href="https://github.com/tenstorrent/ttsim"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-tt-purple-light hover:text-tt-purple"
+          >
+            ttsim
+          </a>{' '}
+          and{' '}
+          <a
+            href="https://github.com/tenstorrent/tt-metal"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-tt-purple-light hover:text-tt-purple"
+          >
+            tt-metal
+          </a>
+        </p>
       </footer>
     </div>
   );

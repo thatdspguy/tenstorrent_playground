@@ -102,7 +102,7 @@ try:
         # Exponential function: exp(x)
         size = int(matrix_size)
         
-        A = torch.ones(size, size) * 1.0  # exp(1) ≈ 2.718
+        A = torch.ones(size, size) * 1.0  # exp(1) is about 2.718
         
         A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
         
@@ -117,7 +117,7 @@ try:
             result = ttnn.to_torch(B_tt)
         end_time = time.perf_counter()
         
-        # Verify: exp(1) ≈ 2.718
+        # Verify: exp(1) is about 2.718
         output_sample = [result[0, 0].item(), result[0, 1].item()]
         
     elif model_id == "relu_benchmark":

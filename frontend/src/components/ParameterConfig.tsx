@@ -101,13 +101,13 @@ export function ParameterConfig({
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-white">Parameters</h3>
-      <div className="grid gap-4">
+    <div className="space-y-3">
+      <h3 className="text-base font-semibold text-white">Parameters</h3>
+      <div className="grid gap-3">
         {model.parameters.map((param) => (
           <div key={param.name} className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-300">
+              <label className="text-xs font-medium text-gray-300">
                 {param.display_name}
               </label>
               {param.min !== undefined && param.max !== undefined && (

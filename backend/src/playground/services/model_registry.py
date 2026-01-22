@@ -161,8 +161,8 @@ class ModelRegistry:
         self.register(
             ModelInfo(
                 id="chain_benchmark",
-                name="Op Chain (Add→ReLU→Mul)",
-                description="Chains multiple operations: (A + B) → ReLU → multiply by scale. "
+                name="Op Chain (Add->ReLU->Mul)",
+                description="Chains multiple operations: (A + B) -> ReLU -> multiply by scale. "
                 "Simulates a simplified forward pass pattern.",
                 architecture="Pipeline",
                 input_shape=[32, 32],

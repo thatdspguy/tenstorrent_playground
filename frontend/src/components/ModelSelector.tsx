@@ -28,28 +28,23 @@ export function ModelSelector({
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-white mb-4">Select a Model</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <h2 className="text-lg font-semibold text-white mb-3">Select a Model</h2>
+      <div className="grid grid-cols-2 gap-2">
         {models.map((model) => (
           <button
             key={model.id}
             onClick={() => onSelectModel(model)}
-            className={`text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+            className={`text-left p-2 rounded-lg border transition-all duration-200 ${
               selectedModel?.id === model.id
-                ? 'border-tt-purple bg-tt-purple/10 shadow-lg shadow-tt-purple/20'
-                : 'border-gray-700 bg-gray-800 hover:border-gray-500 hover:bg-gray-750'
+                ? 'border-tt-purple bg-tt-purple/10 shadow-md shadow-tt-purple/20'
+                : 'border-gray-700 bg-gray-800 hover:border-gray-500'
             }`}
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-white">{model.name}</h3>
-                <span className="text-xs text-tt-purple-light bg-tt-purple/20 px-2 py-0.5 rounded-full">
-                  {model.architecture}
-                </span>
-              </div>
+            <div className="flex items-start justify-between gap-1">
+              <h3 className="font-medium text-white text-sm leading-tight">{model.name}</h3>
               {selectedModel?.id === model.id && (
                 <svg
-                  className="w-5 h-5 text-tt-purple"
+                  className="w-4 h-4 text-tt-purple flex-shrink-0"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -61,20 +56,9 @@ export function ModelSelector({
                 </svg>
               )}
             </div>
-            <p className="text-sm text-gray-400 mt-2 line-clamp-2">
-              {model.description}
-            </p>
-            <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-              <span>
-                Input: [{model.input_shape.join('×')}]
-              </span>
-              <span>
-                Output: [{model.output_shape.join('×')}]
-              </span>
-              {model.estimated_params > 0 && (
-                <span>{(model.estimated_params / 1000).toFixed(1)}K params</span>
-              )}
-            </div>
+            <span className="text-xs text-tt-purple-light bg-tt-purple/20 px-1.5 py-0.5 rounded-full inline-block mt-1">
+              {model.architecture}
+            </span>
           </button>
         ))}
       </div>
