@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from './api';
 import type {
-  ModelInfo,
-  ParameterRange,
-  SimulationJob,
-  SweepParameter,
-  SweepSimulationResult,
+    ModelInfo,
+    ParameterRange,
+    SimulationJob,
+    SweepParameter,
+    SweepSimulationResult,
 } from './api/types';
 import { ModelSelector, ResultsChart, SimulationStatusDisplay } from './components';
 import { DualChartView } from './components/DualChartView';
@@ -118,46 +118,64 @@ function App() {
       // Get sweepable parameters for the new model
       const sweepable = selectedModel.parameters.filter((p) => p.sweepable);
       
-      // For X-axis: try to find a matching parameter by name, otherwise use first sweepable
+      // Determine default parameter ordering: prefer matrix_size for X, batch_size for Y
+      const matrixParam = sweepable.find(p => p.name === 'matrix_size');
+      const batchParam = sweepable.find(p => p.name === 'batch_size');
+      
+      // For X-axis: try to find a matching parameter by name, otherwise use matrix_size or first sweepable
       if (sweepable.length > 0) {
-        const matchingParam = xAxisConfig.parameterName 
-          ? sweepable.find(p => p.name === xAxisConfig.parameterName)
-          : null;
-        const targetParam = matchingParam || sweepable[0];
-        
-        setXAxisConfig((prev) => ({
-          // Preserve user's settings
-          mode: prev.mode,
-          numPoints: prev.numPoints,
-          scale: prev.scale,
-          start: prev.start,
-          end: prev.end,
-          fixedValue: prev.fixedValue,
-          // Update parameter name to match new model
-          parameterName: targetParam.name,
-        }));
+        setXAxisConfig((prev) => {
+          const matchingParam = prev.parameterName 
+            ? sweepable.find(p => p.name === prev.parameterName)
+            : null;
+          // Prefer: existing match > matrix_size > first sweepable
+          const targetParam = matchingParam || matrixParam || sweepable[0];
+          
+          return {
+            // Preserve user's settings
+            mode: prev.mode,
+            numPoints: prev.numPoints,
+            scale: prev.scale,
+            start: prev.start,
+            end: prev.end,
+            fixedValue: prev.fixedValue,
+            // Update parameter name to match new model
+            parameterName: targetParam.name,
+          };
+        });
       }
       
-      // For Y-axis: try to find a matching parameter by name, otherwise use second sweepable
+      // For Y-axis: try to find a matching parameter by name, otherwise use batch_size or second sweepable
       if (sweepable.length > 1) {
-        const matchingParam = yAxisConfig.parameterName 
-          ? sweepable.find(p => p.name === yAxisConfig.parameterName)
-          : null;
-        // Avoid using the same parameter as X-axis
-        const availableParams = sweepable.filter(p => p.name !== xAxisConfig.parameterName);
-        const targetParam = matchingParam || availableParams[0] || sweepable[1];
-        
-        setYAxisConfig((prev) => ({
-          // Preserve user's settings
-          mode: prev.mode,
-          numPoints: prev.numPoints,
-          scale: prev.scale,
-          start: prev.start,
-          end: prev.end,
-          fixedValue: prev.fixedValue,
-          // Update parameter name to match new model
-          parameterName: targetParam.name,
-        }));
+        setYAxisConfig((prev) => {
+          const matchingParam = prev.parameterName 
+            ? sweepable.find(p => p.name === prev.parameterName)
+            : null;
+          
+          // Determine what X-axis will use (same logic as above)
+          const xAxisParam = sweepable.find(p => p.name === 'matrix_size') || sweepable[0];
+          
+          // Get available params (excluding what X-axis uses)
+          const availableParams = sweepable.filter(p => p.name !== xAxisParam.name);
+          
+          // Prefer: existing match (if still available) > batch_size (if available) > first available
+          const targetParam = 
+            (matchingParam && availableParams.find(p => p.name === matchingParam.name)) ||
+            (batchParam && availableParams.find(p => p.name === batchParam.name)) ||
+            availableParams[0];
+          
+          return {
+            // Preserve user's settings
+            mode: prev.mode,
+            numPoints: prev.numPoints,
+            scale: prev.scale,
+            start: prev.start,
+            end: prev.end,
+            fixedValue: prev.fixedValue,
+            // Update parameter name to match new model
+            parameterName: targetParam?.name ?? null,
+          };
+        });
       } else {
         setYAxisConfig((prev) => ({ ...prev, parameterName: null }));
       }
