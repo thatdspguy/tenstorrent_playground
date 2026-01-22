@@ -201,6 +201,15 @@ export function ResultsChart({ result }: ResultsChartProps) {
           {result.model_id === 'chain_benchmark' && (
             <p className="text-xs text-gray-400 mt-2">Random input → Add 0.5 → ReLU → Multiply by 2</p>
           )}
+          {result.model_id === 'sigmoid_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">✓ Expected: 0.5 (sigmoid(0) = 0.5)</p>
+          )}
+          {result.model_id === 'gelu_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">✓ Expected: ~0.841 (GELU(1))</p>
+          )}
+          {result.model_id === 'tanh_benchmark' && (
+            <p className="text-xs text-green-400 mt-2">✓ Expected: 0.0 (tanh(0) = 0)</p>
+          )}
         </div>
       )}
     </div>

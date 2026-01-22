@@ -172,6 +172,72 @@ try:
         
         output_sample = [result[0, 0].item(), result[0, 1].item()]
     
+    elif model_id == "sigmoid_benchmark":
+        # Sigmoid activation: 1/(1+exp(-x))
+        size = int(matrix_size)
+        
+        A = torch.zeros(size, size)  # sigmoid(0) = 0.5
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.sigmoid(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.sigmoid(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: sigmoid(0) = 0.5
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "gelu_benchmark":
+        # GELU activation (used in transformers)
+        size = int(matrix_size)
+        
+        A = torch.ones(size, size) * 1.0  # gelu(1) is about 0.841
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.gelu(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.gelu(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: gelu(1) is about 0.841
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "tanh_benchmark":
+        # Tanh activation
+        size = int(matrix_size)
+        
+        A = torch.zeros(size, size)  # tanh(0) = 0
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        B_tt = ttnn.tanh(A_tt)
+        _ = ttnn.to_torch(B_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            B_tt = ttnn.tanh(A_tt)
+            result = ttnn.to_torch(B_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: tanh(0) = 0
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
     else:
         raise ValueError(f"Unknown model: {model_id}")
     

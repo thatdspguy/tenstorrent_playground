@@ -191,6 +191,108 @@ class ModelRegistry:
             )
         )
 
+        # Sigmoid activation benchmark
+        self.register(
+            ModelInfo(
+                id="sigmoid_benchmark",
+                name="Sigmoid Activation",
+                description="Computes sigmoid(x) = 1/(1+exp(-x)). Verifiable: sigmoid(0) = 0.5. "
+                "Common activation function in neural networks.",
+                architecture="Benchmark",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square tensors (NxN)",
+                        type="select",
+                        default=32,
+                        options=["32", "64", "128", "256"],
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of operations to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # GELU activation benchmark (used in transformers)
+        self.register(
+            ModelInfo(
+                id="gelu_benchmark",
+                name="GELU Activation",
+                description="Gaussian Error Linear Unit - the activation used in BERT, GPT, etc. "
+                "Verifiable: gelu(1) is about 0.841.",
+                architecture="Benchmark",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square tensors (NxN)",
+                        type="select",
+                        default=32,
+                        options=["32", "64", "128", "256"],
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of operations to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # Tanh activation benchmark
+        self.register(
+            ModelInfo(
+                id="tanh_benchmark",
+                name="Tanh Activation",
+                description="Hyperbolic tangent activation. Verifiable: tanh(0) = 0. "
+                "Classic activation used in RNNs and LSTMs.",
+                architecture="Benchmark",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square tensors (NxN)",
+                        type="select",
+                        default=32,
+                        options=["32", "64", "128", "256"],
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of operations to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
     def register(self, model: ModelInfo) -> None:
         """Register a model in the registry."""
         self._models[model.id] = model
