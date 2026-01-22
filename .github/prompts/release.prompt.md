@@ -1,125 +1,170 @@
 ---
-agent: agent
+mode: agent
+description: "Automated release process - Usage: /release v1.2.0"
 ---
 
-# Release Automation Prompt
+# Automated Release Process
 
-Prepare and publish a new release of the Tenstorrent Simulator Playground.
+This prompt fully automates the release of Tenstorrent Simulator Playground.
 
-## Prerequisites
+**Usage:** `/release vX.Y.Z` (e.g., `/release v1.2.0`)
 
-Before running this prompt, ensure:
-- All features for this release are merged to the current branch
-- All tests pass
-- You have push access to the repository
+The version is provided by the user in the prompt. Extract it and proceed automatically.
 
-## Tasks
+---
 
-### 1. Determine Version
+## Step 1: Stage and Commit Outstanding Changes
 
-Ask the user what type of release this is:
-- **major**: Breaking changes or significant new features (X.0.0)
-- **minor**: New features, backward compatible (x.Y.0)  
-- **patch**: Bug fixes, backward compatible (x.y.Z)
+First, check for any uncommitted changes and commit them:
 
-Read the current version from `backend/pyproject.toml` and calculate the new version.
+```bash
+git status --porcelain
+```
 
-### 2. Update Documentation
+If there are unstaged or uncommitted changes:
+1. Stage all changes: `git add -A`
+2. Create a commit with a descriptive message based on the changed files
+3. If no changes, proceed to next step
 
-Review and update documentation to reflect current state:
+---
 
-- **README.md**: Ensure features, installation instructions, and examples are current
-- **backend/README.md**: Update API documentation if endpoints changed
-- **frontend/README.md**: Update component documentation if UI changed
-- **docs/**: Update any guides or technical documentation
+## Step 2: Identify Previous Release Tag
 
-Check for:
-- Outdated screenshots or diagrams
-- Missing new features in feature lists
-- Deprecated functionality that should be removed
-- Correct version numbers in examples
+Find the most recent release tag:
 
-### 3. Update CHANGELOG.md
+```bash
+git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0"
+```
 
-Update `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) format:
+Store this as the previous version for comparison.
+
+---
+
+## Step 3: Get Commits Since Last Release
+
+Get all commits since the last release tag:
+
+```bash
+git log <previous-tag>..HEAD --oneline --no-merges
+```
+
+Categorize these commits by their prefixes:
+- `feat:` → Added
+- `fix:` → Fixed
+- `docs:` → Documentation (may affect README updates)
+- `refactor:`, `perf:` → Changed
+- `chore:`, `build:`, `ci:` → Infrastructure (usually not in changelog)
+- `BREAKING CHANGE` or `!:` → Breaking Changes
+
+---
+
+## Step 4: Update CHANGELOG.md
+
+Read the current `CHANGELOG.md` and insert a new release section at the top (after the header), following [Keep a Changelog](https://keepachangelog.com/) format:
 
 ```markdown
 ## [X.Y.Z] - YYYY-MM-DD
 
 ### Added
-- New features added in this release
+- (features from feat: commits)
 
-### Changed
-- Changes to existing functionality
+### Changed  
+- (changes from refactor:, perf: commits)
 
 ### Fixed
-- Bug fixes
-
-### Removed
-- Removed features or deprecated functionality
-
-### Security
-- Security fixes (if any)
+- (fixes from fix: commits)
 ```
 
-To identify changes since the last release:
-1. Check git log: `git log --oneline <last-tag>..HEAD`
-2. Review closed PRs and issues
-3. Check for dependency updates
+Only include sections that have entries. Use today's date.
 
-### 4. Bump Version Numbers
+---
 
-Update version in all locations:
-- `backend/pyproject.toml` - `version = "X.Y.Z"`
-- `frontend/package.json` - `"version": "X.Y.Z"`
+## Step 5: Update Version Numbers
 
-Ensure consistency across all version references.
+Update the version in these files to match the release version:
 
-### 5. Commit Release Changes
+1. **backend/pyproject.toml**: Update `version = "X.Y.Z"`
+2. **frontend/package.json**: Update `"version": "X.Y.Z"`
+3. **README.md**: Update version badge if present (e.g., `version-X.Y.Z-blue`)
 
-Create a release commit with all documentation and version changes:
+---
+
+## Step 6: Update Documentation
+
+Review commits for documentation-relevant changes and update:
+
+1. **README.md**: 
+   - Update Features section if new features were added
+   - Update any outdated instructions
+   - Ensure version badge matches new version
+
+2. **CHANGELOG.md**: Already updated in Step 4
+
+Only make changes if the commits indicate new features, API changes, or UI changes that aren't already documented.
+
+---
+
+## Step 7: Create Release Commit
+
+Stage all changes and create the release commit:
 
 ```bash
 git add -A
 git commit -m "chore: release vX.Y.Z
 
-- Update CHANGELOG.md
-- Bump version to X.Y.Z
+- Update CHANGELOG.md with release notes
+- Bump version to X.Y.Z in pyproject.toml and package.json
 - Update documentation"
 ```
 
-### 6. Create Git Tag
+---
 
-Create an annotated tag for the release:
+## Step 8: Create Git Tag
+
+Create an annotated tag with a summary of key changes:
 
 ```bash
 git tag -a vX.Y.Z -m "Release vX.Y.Z
 
-<Brief summary of key changes>"
+Key changes:
+- (2-4 bullet points summarizing major changes from changelog)"
 ```
 
-### 7. Push to Remote
+---
 
-Push the commit and tag to the `dev` branch:
+## Step 9: Push to Remote
+
+Push the commit and tag to the dev branch:
 
 ```bash
 git push origin dev
 git push origin vX.Y.Z
 ```
 
-## Success Criteria
+---
 
-- [ ] Version numbers updated consistently across all files
-- [ ] CHANGELOG.md includes all notable changes since last release
-- [ ] Documentation reflects current functionality
-- [ ] Release commit created with appropriate message
-- [ ] Git tag created with version number
-- [ ] Changes pushed to `dev` branch
-- [ ] Tag pushed to remote
+## Completion Summary
 
-## Notes
+After all steps complete, output a summary:
 
-- If CHANGELOG.md doesn't exist, create it with the full history
-- Use semantic versioning (semver.org)
-- Include migration notes for breaking changes in major releases
-- Consider creating GitHub release after pushing (manual step)
+```
+✅ Release vX.Y.Z completed successfully!
+
+📋 Summary:
+- Commits included: <count>
+- Previous version: <old-version>
+- New version: <new-version>
+- Tag created: vX.Y.Z
+- Pushed to: origin/dev
+
+🔗 Next steps (manual):
+- Create GitHub Release at: https://github.com/thatdspguy/tenstorrent_playground/releases/new?tag=vX.Y.Z
+```
+
+---
+
+## Error Handling
+
+- If git push fails, inform user and provide manual commands
+- If no commits found since last release, warn but proceed with version bump
+- If version parsing fails, abort and ask user to verify version format
