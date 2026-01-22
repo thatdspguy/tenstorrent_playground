@@ -101,12 +101,17 @@ class SweepService:
         job: SweepJob,
         param_values: dict[str, int | float],
     ) -> SweepDataPoint | None:
-        """Run a single simulation point within a sweep."""
+        """Run a single simulation point within a sweep.
+
+        Updates job.completed_points and job.data_points in real-time for progress tracking.
+        """
         if job.cancelled:
+            job.completed_points += 1
             return None
 
         async with self._semaphore:
             if job.cancelled:
+                job.completed_points += 1
                 return None
 
             # Build simulation parameters from fixed params + sweep params
@@ -130,29 +135,38 @@ class SweepService:
 
                 if sim_job.result and sim_job.result.metrics:
                     metrics = sim_job.result.metrics
-                    return SweepDataPoint(
+                    data_point = SweepDataPoint(
                         parameter_values=param_values,
                         latency_ms=metrics.latency_ms,
                         throughput_inferences_per_sec=metrics.throughput_inferences_per_sec,
                         memory_usage_mb=metrics.memory_usage_mb,
                     )
+                    job.data_points.append(data_point)
+                    job.completed_points += 1
+                    return data_point
                 else:
                     # Return a point with zero values on failure
-                    return SweepDataPoint(
+                    data_point = SweepDataPoint(
                         parameter_values=param_values,
                         latency_ms=0.0,
                         throughput_inferences_per_sec=0.0,
                         memory_usage_mb=0.0,
                     )
+                    job.data_points.append(data_point)
+                    job.completed_points += 1
+                    return data_point
             except Exception as e:
-                # Log error but continue sweep
+                # Log error but continue sweep, still count as completed
                 print(f"Sweep point failed: params={param_values}, error={e}")
-                return SweepDataPoint(
+                data_point = SweepDataPoint(
                     parameter_values=param_values,
                     latency_ms=0.0,
                     throughput_inferences_per_sec=0.0,
                     memory_usage_mb=0.0,
                 )
+                job.data_points.append(data_point)
+                job.completed_points += 1
+                return data_point
 
     async def run_sweep(self, request: SweepSimulationRequest) -> str:
         """Start a sweep simulation job.
@@ -216,22 +230,14 @@ class SweepService:
                     tasks.append(self.run_single_simulation(job, param_values))
 
             # Execute all tasks concurrently (semaphore limits actual concurrency)
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Progress is updated in real-time inside run_single_simulation
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Collect successful results
-            for result in results:
-                if job.cancelled:
-                    job.status = SweepStatus.CANCELLED
-                    return
-
-                if isinstance(result, SweepDataPoint):
-                    job.data_points.append(result)
-                    job.completed_points += 1
-                elif isinstance(result, Exception):
-                    print(f"Sweep task exception: {result}")
-                    job.completed_points += 1
-
-            job.status = SweepStatus.COMPLETED
+            # Check final status
+            if job.cancelled:
+                job.status = SweepStatus.CANCELLED
+            else:
+                job.status = SweepStatus.COMPLETED
             job.completed_at = datetime.utcnow()
 
         except Exception as e:
