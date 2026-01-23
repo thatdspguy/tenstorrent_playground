@@ -21,6 +21,8 @@ A web-based playground for exploring Tenstorrent AI accelerator capabilities usi
 - ⚡ **Multiple Models** — Element-wise operations, activations, and operation chains
 - 💾 **Smart Defaults** — Sensible parameter defaults with settings preserved across model changes
 
+---
+
 ## 🖼️ Preview
 
 The playground features model selection, parameter sweep configuration, and interactive results:
@@ -28,6 +30,171 @@ The playground features model selection, parameter sweep configuration, and inte
 ![Tenstorrent Playground](assets/tenstorrent_playground.gif
 )
 
+---
+
+## 🏗️ Architecture
+
+### System Overview
+
+The playground uses a three-tier architecture with the frontend communicating with a FastAPI backend, which orchestrates simulations through the ttsim hardware simulator running in WSL2 (Windows) or natively (Linux/Docker).
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend (React + Vite)"]
+        UI[Web UI]
+        API_Client[API Client]
+    end
+
+    subgraph Backend["Backend (FastAPI)"]
+        Routes[API Routes]
+        ModelReg[Model Registry]
+        SimService[Simulator Service]
+        SweepService[Sweep Service]
+    end
+
+    subgraph Simulator["Simulation Environment"]
+        direction TB
+        WSL["WSL2 / Linux"]
+        TTNN[ttnn Library]
+        ttsim["ttsim Simulator"]
+        SOC["SOC Descriptors"]
+    end
+
+    subgraph Hardware["Simulated Hardware"]
+        WH[Wormhole Chip]
+        BH[Blackhole Chip]
+    end
+
+    UI --> API_Client
+    API_Client -->|REST API| Routes
+    Routes --> ModelReg
+    Routes --> SimService
+    Routes --> SweepService
+    SweepService --> SimService
+    SimService -->|subprocess| WSL
+    WSL --> TTNN
+    TTNN --> ttsim
+    ttsim --> SOC
+    ttsim --> WH
+    ttsim --> BH
+```
+
+### Simulation Flow
+
+When a user runs a simulation, the request flows through multiple layers before executing on the ttsim hardware simulator.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant SimService as Simulator Service
+    participant WSL as WSL2/Linux
+    participant ttsim
+
+    User->>Frontend: Configure & Run Simulation
+    Frontend->>Backend: POST /api/simulate
+    Backend->>Backend: Validate model & chip
+    Backend->>SimService: run_simulation(request)
+    SimService->>SimService: Create job (PENDING)
+    SimService->>SimService: Build config + script
+    
+    alt Windows (WSL2 Mode)
+        SimService->>WSL: Execute via wsl.exe
+    else Linux/Docker (Native Mode)
+        SimService->>WSL: Execute directly
+    end
+    
+    WSL->>ttsim: Load simulator library
+    ttsim->>ttsim: Initialize device
+    ttsim->>ttsim: Run TTNN operations
+    ttsim-->>WSL: Return metrics
+    WSL-->>SimService: JSON results
+    SimService->>SimService: Parse & store results
+    SimService-->>Backend: SimulationJob (COMPLETED)
+    Backend-->>Frontend: Job with metrics
+    Frontend-->>User: Display charts & results
+```
+
+### Parameter Sweep Architecture
+
+Parameter sweeps allow exploring performance across multiple configurations. The sweep service manages concurrent simulations and aggregates results for visualization.
+
+```mermaid
+flowchart TB
+    subgraph Input["Sweep Configuration"]
+        Model[Model Selection]
+        XAxis["X-Axis Parameter<br/>(e.g., matrix_size)"]
+        YAxis["Y-Axis Parameter<br/>(e.g., batch_size)"]
+        Fixed[Fixed Parameters]
+    end
+
+    subgraph SweepService["Sweep Service"]
+        Generator["Value Generator<br/>(Linear/Logarithmic)"]
+        Queue[Job Queue]
+        Semaphore["Concurrency Control<br/>(max 4 parallel)"]
+    end
+
+    subgraph Execution["Parallel Execution"]
+        Sim1[Simulation 1]
+        Sim2[Simulation 2]
+        Sim3[Simulation 3]
+        SimN[Simulation N]
+    end
+
+    subgraph Results["Results Aggregation"]
+        DataPoints[Data Points]
+        Metrics["Metrics<br/>(latency, throughput, memory)"]
+    end
+
+    subgraph Visualization["Visualization Options"]
+        Line[2D Line Chart]
+        Surface[3D Surface Plot]
+        Heatmap[Heatmap]
+    end
+
+    Model --> Generator
+    XAxis --> Generator
+    YAxis --> Generator
+    Fixed --> Queue
+    Generator --> Queue
+    Queue --> Semaphore
+    Semaphore --> Sim1 & Sim2 & Sim3 & SimN
+    Sim1 & Sim2 & Sim3 & SimN --> DataPoints
+    DataPoints --> Metrics
+    Metrics --> Line
+    Metrics --> Surface
+    Metrics --> Heatmap
+```
+
+### Backend Services
+
+The backend is organized into three main services that work together to handle simulation requests.
+
+```mermaid
+flowchart LR
+    subgraph API["API Layer"]
+        Routes["/api/*"]
+    end
+
+    subgraph Services["Service Layer"]
+        MR["Model Registry<br/>━━━━━━━━━━━━━<br/>• List models<br/>• Get model info<br/>• Validate model ID<br/>• Speedup estimates"]
+        SS["Simulator Service<br/>━━━━━━━━━━━━━<br/>• Check availability<br/>• Run simulations<br/>• Manage jobs<br/>• WSL2 integration"]
+        SW["Sweep Service<br/>━━━━━━━━━━━━━<br/>• Generate values<br/>• Parallel execution<br/>• Progress tracking<br/>• Job cancellation"]
+    end
+
+    subgraph Data["Data Models"]
+        Schemas["Pydantic Schemas<br/>━━━━━━━━━━━━━<br/>• SimulationRequest<br/>• SimulationJob<br/>• PerformanceMetrics<br/>• SweepSimulationResult"]
+    end
+
+    Routes --> MR
+    Routes --> SS
+    Routes --> SW
+    SW --> SS
+    MR --> Schemas
+    SS --> Schemas
+    SW --> Schemas
+```
 
 ---
 
