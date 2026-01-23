@@ -67,5 +67,5 @@ if (-not (Test-Path (Join-Path $FrontendPath "node_modules"))) {
 }
 
 Push-Location $FrontendPath
-npm run dev
+npm run dev -- --open
 Pop-Location
