@@ -124,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Backend: Python 3.12+, FastAPI, Pydantic, uvicorn
 - Frontend: React 19, TypeScript 5, Vite 7, Tailwind CSS 4
-- Simulator: ttsim 1.3.0, ttnn 0.65.0, PyTorch CPU
+- Simulator: ttsim 1.3.1, ttnn 0.65.0, PyTorch CPU
 - Container: Docker with multi-stage builds
 
 ---

@@ -62,7 +62,7 @@ export TT_METAL_HOME=~/tt-metal
 # ============================================
 echo ""
 echo "=== Downloading ttsim Simulator ==="
-TTSIM_VERSION="v1.3.0"
+TTSIM_VERSION="v1.3.1"
 mkdir -p ~/ttsim
 cd ~/ttsim
 

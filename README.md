@@ -6,7 +6,7 @@ A web-based playground for exploring Tenstorrent AI accelerator capabilities usi
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
 ![React](https://img.shields.io/badge/react-19-61dafb)
-![ttsim](https://img.shields.io/badge/ttsim-1.3.0-purple)
+![ttsim](https://img.shields.io/badge/ttsim-1.3.1-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## ✨ Features
@@ -273,8 +273,8 @@ pip3 install ttnn torch --break-system-packages --index-url https://download.pyt
 
 # Download ttsim simulators (Wormhole and Blackhole)
 mkdir -p ~/ttsim && cd ~/ttsim
-wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so
-wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_wh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_bh.so
 
 # Clone tt-metal for SOC descriptors
 git clone --depth 1 https://github.com/tenstorrent/tt-metal.git ~/tt-metal
@@ -594,7 +594,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 | ------------- | ----------------------------------------------------------------- |
 | **Frontend**  | React 19, TypeScript, Vite 7, Tailwind CSS 4, Chart.js, Plotly.js |
 | **Backend**   | Python 3.12+, FastAPI, Pydantic, uvicorn                          |
-| **Simulator** | ttsim 1.3.0, ttnn, PyTorch (CPU)                                  |
+| **Simulator** | ttsim 1.3.1, ttnn, PyTorch (CPU)                                  |
 | **Platform**  | Windows + WSL2 Ubuntu, Docker                                     |
 | **Tools**     | uv, npm, Docker Compose                                           |
 

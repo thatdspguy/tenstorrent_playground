@@ -22,9 +22,9 @@ ENV PATH="/root/.local/bin:$PATH"
 
 # Download ttsim simulator libraries (Wormhole and Blackhole)
 RUN mkdir -p /opt/ttsim && \
-    wget -q https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so \
+    wget -q https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_wh.so \
     -O /opt/ttsim/libttsim_wh.so && \
-    wget -q https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so \
+    wget -q https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_bh.so \
     -O /opt/ttsim/libttsim_bh.so
 
 # Clone tt-metal for SOC descriptors (shallow clone, only what's needed)

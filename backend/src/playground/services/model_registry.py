@@ -85,7 +85,7 @@ class ModelRegistry:
 
     Note: The ttsim simulator has limited operation support.
     Only element-wise operations work reliably.
-    Matrix multiplication and linear layers are NOT supported in ttsim v1.3.0.
+    Matrix multiplication and linear layers may have limited support in ttsim v1.3.1.
     """
 
     def __init__(self):

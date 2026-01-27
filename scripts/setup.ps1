@@ -116,7 +116,7 @@ echo "Setting up ttsim simulator..."
 mkdir -p ~/ttsim
 cd ~/ttsim
 
-TTSIM_VERSION="v1.3.0"
+TTSIM_VERSION="v1.3.1"
 
 # Download Wormhole simulator
 if [ ! -f "libttsim_wh.so" ]; then
