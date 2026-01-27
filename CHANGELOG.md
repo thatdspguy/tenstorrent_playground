@@ -5,6 +5,21 @@ All notable changes to the Tenstorrent Simulator Playground will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-01-27
+
+### Added
+
+- **Updated Demo Assets**
+  - New digit recognition demo GIF with improved visualization
+
+### Fixed
+
+- **Docker Desktop Compatibility**
+  - Fixed 500 Internal Server Error when running digit recognition in Docker containers
+  - Implemented native Docker inference that runs Python directly instead of attempting WSL calls
+  - Proper environment variable handling for containerized ttsim execution
+  - Automatic SOC descriptor selection for Wormhole/Blackhole chips in Docker
+
 ## [1.3.0] - 2026-01-27
 
 ### Added
@@ -233,5 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[1.1.0]: https://github.com/tenstorrent/tenstorrent_playground/releases/tag/v1.1.0
-[1.0.0]: https://github.com/tenstorrent/tenstorrent_playground/releases/tag/v1.0.0
+[1.4.0]: https://github.com/thatdspguy/tenstorrent_playground/releases/tag/v1.4.0
+[1.3.0]: https://github.com/thatdspguy/tenstorrent_playground/releases/tag/v1.3.0
+[1.2.0]: https://github.com/thatdspguy/tenstorrent_playground/releases/tag/v1.2.0
+[1.1.0]: https://github.com/thatdspguy/tenstorrent_playground/releases/tag/v1.1.0
+[1.0.0]: https://github.com/thatdspguy/tenstorrent_playground/releases/tag/v1.0.0
