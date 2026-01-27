@@ -5,6 +5,73 @@ All notable changes to the Tenstorrent Simulator Playground will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-27
+
+### Added
+
+- **Digit Recognition Page**
+  - Interactive drawing canvas for handwritten digit input (0-9)
+  - Real-time MNIST neural network inference on Tenstorrent simulator
+  - Network architecture visualization showing layer activations and connections
+  - Performance statistics tracking (average latency and throughput)
+  - Confidence display with horizontal bar chart for all 10 digit classes
+  - Trained 2-layer MLP model (784→128→10) achieving ~98% accuracy
+  - New digit recognition API endpoints (`/api/digit/predict`, `/api/digit/model-info`)
+
+- **Simple 2-Layer MLP Operation**
+  - Configurable neural network architecture editor
+  - Interactive network diagram showing input, hidden, and output layers
+  - Configurable sizes: input (32/64), hidden (32/64), output (16/32/64), batch (16/32/64)
+  - Parameter count display with real-time updates
+  - Visual representation of layer connections and ReLU activation
+
+- **Matrix Multiplication Operation**
+  - Support for 32×32 and 64×64 matrix operations
+  - Optimized for TTNN performance benchmarking
+  - Added matrix multiply icon to operation selector
+
+- **React Router Integration**
+  - Separate pages for Digit Recognition (/) and Mathematical Operations (/math-operations)
+  - Clean URL structure with browser navigation support
+  - Navigation sidebar with page links
+
+### Changed
+
+- **UI Redesign**
+  - Non-collapsible sidebar with fixed width (256px) for better text display
+  - Simplified branding: "TTSim Playground" with chip icon
+  - Mathematical Operations page header now matches Digit Recognition style
+  - Operation selector reorganized into 4×3 grid by category
+  - Updated icons for subtract (circle with line) and matrix multiply (grid with @)
+
+- **Model Registry Reorganization**
+  - Removed chain operations (chain_benchmark, chain_gelu_mul)
+  - Reordered operations: Arithmetic (Add/Subtract/Multiply/Sqrt), Activations (Sigmoid/Tanh/ReLU/GELU), Advanced (Exp/Log/MatMul/MLP)
+  - Matrix multiplication limited to maximum 64×64 size
+
+- **Improved Default Parameters**
+  - Parameter 1: start=2, end=32, points=5, scale=logarithmic
+  - Parameter 2: start=8, end=128, points=3, scale=logarithmic
+  - Iterations default changed from 10 to 50
+  - Iterations value now preserved when switching between operations
+
+- **Frontend Dependencies**
+  - Updated to React Router v7.13.0 for page routing
+  - Added react-router-dom dependency
+
+### Fixed
+
+- Iterations parameter now correctly defaults to 50 and persists across model changes
+- Sidebar width increased to prevent "Mathematical Operations" text cutoff
+
+### Documentation
+
+- Updated README with Digit Recognition feature and Pages section
+- Added comprehensive documentation for new components (DrawingCanvas, NetworkVisualization, MLPVisualization)
+- Updated API reference with digit recognition endpoints
+- Refreshed project structure reflecting new pages/ directory and components
+- Updated both frontend and backend README files with new features
+
 ## [Unreleased]
 
 ### Added

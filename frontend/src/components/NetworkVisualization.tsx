@@ -56,7 +56,7 @@ export function NetworkVisualization({
   }, [modelInfo]);
 
   // Render neuron grid (with output layer confidence brightness)
-  const renderNeuronGrid = (count: number, maxDisplay: number = 64, activations?: number[], layerIdx?: number, isOutput?: boolean, confidences?: number[]) => {
+  const renderNeuronGrid = (count: number, maxDisplay: number = 64, activations?: number[], _layerIdx?: number, isOutput?: boolean, confidences?: number[]) => {
     const displayCount = Math.min(count, maxDisplay);
     const cols = Math.ceil(Math.sqrt(displayCount));
     const hasMore = count > maxDisplay;
