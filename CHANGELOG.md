@@ -5,6 +5,21 @@ All notable changes to the Tenstorrent Simulator Playground will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-27
+
+### Added
+
+- **Enhanced Network Visualization**
+  - 28×28 pixel grid visualization for input layer displaying the actual drawn digit
+  - Vertical output column showing all 10 digit classes (0-9) with labels
+  - Green ring highlight indicator for the predicted digit
+  - Pixel data pass-through from drawing canvas to network visualization
+
+### Changed
+
+- **Performance Statistics Display**
+  - Average throughput now displays with 2 decimal places for precision
+
 ## [1.2.0] - 2026-01-27
 
 ### Added
