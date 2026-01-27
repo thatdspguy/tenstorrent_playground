@@ -5,6 +5,28 @@ All notable changes to the Tenstorrent Simulator Playground will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Matrix Multiplication Support (ttsim v1.3.1)**
+  - Upgraded ttsim simulator from v1.3.0 to v1.3.1
+  - New "Matrix Multiply (A @ B)" benchmark - true matrix multiplication operation
+  - New "Simple 2-Layer MLP" model - Linear(64->64) + ReLU + Linear(64->32)
+  - Matrix operations work reliably for sizes up to 64x64 on the simulator
+  - Test scripts: `test_matmul.py`, `test_matmul_limits.py`, `test_simple_mlp.py`
+
+### Changed
+
+- Updated all ttsim references from v1.3.0 to v1.3.1 across setup scripts and documentation
+- Model registry now includes "Matrix" architecture category for matmul operations
+
+### Notes
+
+- Matrix multiplication (ttnn.matmul) works on ttsim v1.3.1 with size limitations (≤64x64)
+- Larger matrices may fail due to Pack_L1_Acc limitations in the simulator
+- Results match PyTorch within bfloat16 precision (max diff ~0.03)
+
 ## [1.1.0] - 2026-01-22
 
 ### Added

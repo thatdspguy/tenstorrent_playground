@@ -227,7 +227,7 @@ export TT_METAL_MOCK_CLUSTER_DESC_PATH=path/to/cluster_desc.yaml
 #### 2. Simulator Mode (ttsim) ✅ AVAILABLE!
 The Tenstorrent simulator is publicly available at: https://github.com/tenstorrent/ttsim
 
-**Latest Version:** v1.3.0 (released Jan 2026)
+**Latest Version:** v1.3.1 (released Jan 2026)
 
 **Supported Chips:**
 - Wormhole (`libttsim_wh.so`) - More mature
@@ -243,8 +243,8 @@ The Tenstorrent simulator is publicly available at: https://github.com/tenstorre
 # In WSL2
 mkdir -p ~/ttsim
 cd ~/ttsim
-wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so
-wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_wh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_bh.so
 
 # Copy SOC descriptor (required - must be in same directory as .so)
 cp $TT_METAL_HOME/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_descriptor.yaml
@@ -361,9 +361,9 @@ export TT_METAL_HOME=~/tt-metal
 mkdir -p ~/ttsim
 cd ~/ttsim
 
-# Download simulator binaries (v1.3.0)
-wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_wh.so
-wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.0/libttsim_bh.so
+# Download simulator binaries (v1.3.1)
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_wh.so
+wget https://github.com/tenstorrent/ttsim/releases/download/v1.3.1/libttsim_bh.so
 
 # Copy SOC descriptor (REQUIRED - must be in same dir as .so)
 cp $TT_METAL_HOME/tt_metal/soc_descriptors/wormhole_b0_80_arch.yaml ~/ttsim/soc_descriptor.yaml
@@ -415,7 +415,7 @@ bash /mnt/d/git/tenstorrent_playground/scripts/test_simulator.sh
 ### Phase 4.2: WSL2 + Simulator Setup
 - [ ] Install tt-metal dependencies in WSL2
 - [ ] Install ttnn (via wheel or source)
-- [ ] Download ttsim v1.3.0 binaries
+- [ ] Download ttsim v1.3.1 binaries
 - [ ] Configure SOC descriptor
 - [ ] Verify simulator with test script
 - [ ] Commit: `chore(deps): configure ttsim simulator in WSL2`

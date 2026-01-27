@@ -366,6 +366,68 @@ try:
         # Verify: gelu(1) * 2 is about 1.682
         output_sample = [result[0, 0].item(), result[0, 1].item()]
     
+    elif model_id == "matmul_benchmark":
+        # Matrix multiplication: A @ B
+        size = int(matrix_size)
+        
+        # Create matrices where result is verifiable: ones @ ones = N (inner dim)
+        A = torch.ones(size, size, dtype=torch.float32)
+        B = torch.ones(size, size, dtype=torch.float32)
+        
+        A_tt = ttnn.from_torch(A, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        B_tt = ttnn.from_torch(B, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup
+        C_tt = ttnn.matmul(A_tt, B_tt)
+        _ = ttnn.to_torch(C_tt)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            C_tt = ttnn.matmul(A_tt, B_tt)
+            result = ttnn.to_torch(C_tt)
+        end_time = time.perf_counter()
+        
+        # Verify: ones @ ones = N (all elements should equal matrix_size)
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
+    elif model_id == "simple_mlp":
+        # Simple 2-layer MLP: Linear(64->64) + ReLU + Linear(64->32)
+        input_dim = 64
+        hidden_dim = 64
+        output_dim = 32
+        
+        # Fixed random seed for reproducibility
+        torch.manual_seed(42)
+        
+        # Create input and weights
+        x = torch.randn(batch_size, input_dim, dtype=torch.float32)
+        w1 = torch.randn(input_dim, hidden_dim, dtype=torch.float32) * 0.1
+        w2 = torch.randn(hidden_dim, output_dim, dtype=torch.float32) * 0.1
+        
+        # Convert to ttnn
+        x_tt = ttnn.from_torch(x, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        w1_tt = ttnn.from_torch(w1, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        w2_tt = ttnn.from_torch(w2, dtype=ttnn.bfloat16, layout=ttnn.TILE_LAYOUT, device=device)
+        
+        # Warmup: x @ w1 -> relu -> @ w2
+        h1 = ttnn.matmul(x_tt, w1_tt)
+        h1_act = ttnn.relu(h1)
+        out = ttnn.matmul(h1_act, w2_tt)
+        _ = ttnn.to_torch(out)
+        
+        # Timed iterations
+        start_time = time.perf_counter()
+        for _ in range(iterations):
+            h1 = ttnn.matmul(x_tt, w1_tt)
+            h1_act = ttnn.relu(h1)
+            out = ttnn.matmul(h1_act, w2_tt)
+            result = ttnn.to_torch(out)
+        end_time = time.perf_counter()
+        
+        # Output sample from the MLP
+        output_sample = [result[0, 0].item(), result[0, 1].item()]
+    
     else:
         raise ValueError(f"Unknown model: {model_id}")
     

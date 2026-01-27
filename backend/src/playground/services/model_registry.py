@@ -20,6 +20,9 @@ ESTIMATED_SPEEDUPS = {
     "add_benchmark": 50.0,
     "subtract_benchmark": 50.0,
     "multiply_benchmark": 55.0,
+    # Matrix operations - compute intensive, big speedup on silicon
+    "matmul_benchmark": 150.0,  # Matrix multiply benefits most from hardware
+    "simple_mlp": 120.0,  # MLP with matmul + activation
     # Transcendental functions - more compute intensive
     "exp_benchmark": 80.0,
     "log_benchmark": 75.0,
@@ -135,6 +138,85 @@ class ModelRegistry:
                 output_shape=[32, 32],
                 estimated_params=0,
                 parameters=_make_standard_params("multiplications"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        # ==================== MATRIX OPERATIONS ====================
+
+        self.register(
+            ModelInfo(
+                id="matmul_benchmark",
+                name="Matrix Multiply (A @ B)",
+                description="True matrix multiplication (A @ B). Verifiable: 32x32 ones matrices produce 32.0. The core operation in neural networks.",
+                architecture="Matrix",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square matrices (NxN). Note: Sizes > 64 may be unstable on ttsim.",
+                        type="select",
+                        default=32,
+                        options=["32", "64"],  # Limited to working sizes on ttsim
+                        sweepable=True,
+                    ),
+                    ModelParameter(
+                        name="batch_size",
+                        display_name="Batch Size",
+                        description="Number of matrix multiplications to perform",
+                        type="select",
+                        default=1,
+                        options=["1", "2", "4", "8"],
+                        sweepable=True,
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of matmul operations to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                        sweepable=False,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
+                id="simple_mlp",
+                name="Simple 2-Layer MLP",
+                description="A minimal neural network: Linear(64->64) + ReLU + Linear(64->32). Tests matmul + activation chains.",
+                architecture="Neural Network",
+                input_shape=[32, 64],
+                output_shape=[32, 32],
+                estimated_params=64 * 64 + 64 * 32,  # ~6K params
+                parameters=[
+                    ModelParameter(
+                        name="batch_size",
+                        display_name="Batch Size",
+                        description="Number of samples per forward pass",
+                        type="select",
+                        default=32,
+                        options=["32"],  # Fixed for compatibility
+                        sweepable=False,
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of forward passes",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                        sweepable=False,
+                    ),
+                ],
                 supported_chips=["wormhole", "blackhole"],
             )
         )
