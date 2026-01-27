@@ -6,9 +6,10 @@ FastAPI backend for running simulations on ttsim via WSL2.
 
 The backend provides a REST API that:
 - Manages simulation jobs on the ttsim hardware simulator
-- Runs TTNN operations via WSL2
+- Runs TTNN operations via WSL2 (Wormhole or Blackhole)
 - Returns performance metrics (latency, throughput, memory usage)
 - Supports parameter sweep simulations for benchmarking
+- Provides digit recognition inference using a trained MNIST model
 
 ## Quick Start
 
@@ -25,7 +26,7 @@ uv run uvicorn playground.main:app --reload --host 127.0.0.1 --port 8000
 ```
 backend/
 ├── src/playground/
-│   ├── __init__.py          # Package version
+│   ├── __init__.py           # Package version
 │   ├── config.py             # Settings and logging configuration
 │   ├── main.py               # FastAPI application factory
 │   ├── api/
@@ -36,9 +37,10 @@ backend/
 │   │   └── schemas.py        # Pydantic request/response schemas
 │   └── services/
 │       ├── __init__.py
-│       ├── model_registry.py # Available model definitions
-│       ├── simulator.py      # WSL2/ttsim integration
-│       └── sweep_service.py  # Parameter sweep service
+│       ├── digit_recognition.py  # MNIST model & inference service
+│       ├── model_registry.py     # Available operation definitions
+│       ├── simulator.py          # WSL2/ttsim integration
+│       └── sweep_service.py      # Parameter sweep service
 ├── pyproject.toml            # Project dependencies
 └── README.md                 # This file
 ```
@@ -68,6 +70,13 @@ backend/
 | `/api/sweep`                 | POST   | Start a parameter sweep simulation |
 | `/api/sweep/{job_id}`        | GET    | Get sweep status and results       |
 | `/api/sweep/{job_id}/cancel` | POST   | Cancel a running sweep             |
+
+### Digit Recognition
+
+| Endpoint                | Method | Description                        |
+| ----------------------- | ------ | ---------------------------------- |
+| `/api/digit/predict`    | POST   | Classify a handwritten digit image |
+| `/api/digit/model-info` | GET    | Get MNIST model architecture info  |
 
 ## Configuration
 
@@ -105,7 +114,7 @@ curl -X POST http://localhost:8000/api/simulate \
   -H "Content-Type: application/json" \
   -d '{
     "model_id": "add_benchmark",
-    "iterations": 10,
+    "iterations": 50,
     "parameters": {"matrix_size": 512}
   }'
 ```

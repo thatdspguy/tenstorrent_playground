@@ -77,7 +77,7 @@ class SimulationRequest(BaseModel):
     batch_size: int = Field(default=1, ge=1, le=128)
     input_shape: list[int] | None = None
     chip: str = Field(default="wormhole", pattern="^(wormhole|blackhole)$")
-    iterations: int = Field(default=10, ge=1, le=100)
+    iterations: int = Field(default=50, ge=1, le=100)
     parameters: dict[str, int | float | str | bool] | None = Field(
         default=None, description="Model-specific parameters (e.g., matrix_size)"
     )
@@ -170,7 +170,7 @@ class SweepSimulationRequest(BaseModel):
         default_factory=dict, description="Fixed parameter values for non-swept parameters"
     )
     chip: str = Field(default="wormhole", pattern="^(wormhole|blackhole)$")
-    iterations: int = Field(default=10, ge=1, le=100)
+    iterations: int = Field(default=50, ge=1, le=100)
 
 
 class SweepDataPoint(BaseModel):
@@ -201,3 +201,56 @@ class SweepSimulationResult(BaseModel):
     error: str | None = None
     created_at: datetime | None = None
     completed_at: datetime | None = None
+
+
+# ============================================================================
+# Digit Recognition Schemas
+# ============================================================================
+
+
+class DigitRecognitionRequest(BaseModel):
+    """Request for digit recognition inference."""
+
+    image_data: str = Field(description="Base64 encoded image data (PNG/JPEG)")
+    chip: str = Field(default="wormhole", pattern="^(wormhole|blackhole)$")
+
+
+class DigitRecognitionResult(BaseModel):
+    """Result of digit recognition inference."""
+
+    predicted_digit: int = Field(ge=-1, le=9, description="Predicted digit (0-9), -1 if failed")
+    confidence: float = Field(ge=0.0, le=1.0, description="Confidence score for predicted digit")
+    all_confidences: list[float] = Field(description="Confidence scores for all 10 digits")
+    latency_ms: float = Field(description="Inference latency in milliseconds")
+    layer_activations: list[list[float]] | None = Field(
+        default=None, description="Activations from each layer for visualization"
+    )
+    success: bool = Field(default=True, description="Whether inference succeeded")
+    error: str | None = Field(default=None, description="Error message if failed")
+
+
+class ModelArchitectureLayer(BaseModel):
+    """Information about a layer in the model architecture."""
+
+    layer: int
+    type: str
+    input_size: int = Field(alias="in")
+    output_size: int = Field(alias="out")
+    matmul_size: str | None = None
+    blocks: int | None = None
+    block_size: int | None = None
+
+    class Config:
+        populate_by_name = True
+
+
+class ModelArchitectureInfo(BaseModel):
+    """Information about the MNIST model architecture."""
+
+    name: str
+    input_size: int
+    output_size: int
+    architecture: list[dict]
+    constraint: str
+    total_parameters: int
+    weights_file: str

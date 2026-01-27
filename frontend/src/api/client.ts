@@ -1,6 +1,9 @@
 import axios from 'axios';
 import type {
+    DigitRecognitionRequest,
+    DigitRecognitionResult,
     HealthResponse,
+    ModelArchitectureInfo,
     ModelInfo,
     SimulationJob,
     SimulationRequest,
@@ -71,6 +74,17 @@ export const apiClient = {
     const response = await api.get<SweepSimulationResult[]>('/sweeps', {
       params: { limit },
     });
+    return response.data;
+  },
+
+  // Digit Recognition
+  async recognizeDigit(request: DigitRecognitionRequest): Promise<DigitRecognitionResult> {
+    const response = await api.post<DigitRecognitionResult>('/digit-recognition', request);
+    return response.data;
+  },
+
+  async getDigitRecognitionModelInfo(): Promise<ModelArchitectureInfo> {
+    const response = await api.get<ModelArchitectureInfo>('/digit-recognition/model-info');
     return response.data;
   },
 };

@@ -4,7 +4,10 @@ from fastapi import APIRouter, HTTPException
 
 from .. import __version__
 from ..models.schemas import (
+    DigitRecognitionRequest,
+    DigitRecognitionResult,
     HealthResponse,
+    ModelArchitectureInfo,
     ModelInfo,
     SimulationJob,
     SimulationRequest,
@@ -12,6 +15,7 @@ from ..models.schemas import (
     SweepSimulationRequest,
     SweepSimulationResult,
 )
+from ..services.digit_recognition import get_model_info, run_digit_recognition
 from ..services.model_registry import model_registry
 from ..services.simulator import simulator_service
 from ..services.sweep_service import sweep_service
@@ -148,3 +152,49 @@ async def cancel_sweep(job_id: str):
 async def list_sweep_jobs(limit: int = 10):
     """List recent sweep jobs."""
     return sweep_service.list_jobs(limit=limit)
+
+
+# ============================================================================
+# Digit Recognition Endpoints
+# ============================================================================
+
+
+@router.post("/digit-recognition", response_model=DigitRecognitionResult, tags=["Digit Recognition"])
+async def recognize_digit(request: DigitRecognitionRequest):
+    """
+    Run digit recognition on an input image.
+
+    The image should be base64 encoded (PNG or JPEG format).
+    The model uses a blocked MLP architecture where no matrix multiplication
+    exceeds 64x64 dimensions, making it compatible with ttsim constraints.
+
+    Returns the predicted digit (0-9) along with confidence scores for all digits.
+    """
+    # Note: We don't check simulator availability here since the digit recognition
+    # service will run via WSL and handle any ttsim issues internally.
+    # The service will return error details in the result if ttsim fails.
+
+    try:
+        result = await run_digit_recognition(request)
+
+        if not result.success:
+            raise HTTPException(status_code=500, detail=f"Digit recognition failed: {result.error}")
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+@router.get("/digit-recognition/model-info", response_model=ModelArchitectureInfo, tags=["Digit Recognition"])
+async def get_digit_recognition_model_info():
+    """
+    Get information about the MNIST model architecture.
+
+    Returns details about the blocked MLP architecture, including:
+    - Layer structure and sizes
+    - Matrix multiplication constraints
+    - Total number of parameters
+    """
+    return get_model_info()

@@ -23,6 +23,14 @@ function getOperationIcon(modelId: string): React.ReactNode {
           <line x1="18" y1="32" x2="46" y2="32" className="stroke-current" strokeLinecap="round" />
         </svg>
       );
+    case 'subtract_benchmark':
+      // Circle with horizontal line (minus in circle)
+      return (
+        <svg className={iconClass} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3">
+          <circle cx="32" cy="32" r="26" className="stroke-current opacity-20" />
+          <line x1="18" y1="32" x2="46" y2="32" className="stroke-current" strokeLinecap="round" />
+        </svg>
+      );
     case 'multiply_benchmark':
       // X sign for multiplication
       return (
@@ -117,6 +125,56 @@ function getOperationIcon(modelId: string): React.ReactNode {
         <svg className={iconClass} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3">
           <rect x="8" y="8" width="48" height="48" rx="4" className="stroke-current opacity-20" />
           <path d="M16 52 Q 24 24, 36 20 T 52 16" className="stroke-current" strokeLinecap="round" fill="none" />
+        </svg>
+      );
+    case 'matmul_benchmark':
+      // Matrix multiplication grid with @ symbol
+      return (
+        <svg className={iconClass} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="8" y="8" width="48" height="48" rx="4" className="stroke-current opacity-20" />
+          {/* Left matrix */}
+          <rect x="12" y="20" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+          <rect x="12" y="28" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+          <rect x="20" y="20" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+          <rect x="20" y="28" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+          {/* @ symbol */}
+          <text x="32" y="32" textAnchor="middle" dominantBaseline="middle" className="fill-current text-[12px] font-bold">@</text>
+          {/* Right matrix */}
+          <rect x="38" y="20" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+          <rect x="38" y="28" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+          <rect x="46" y="20" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+          <rect x="46" y="28" width="6" height="6" rx="1" className="stroke-current fill-current opacity-40" />
+        </svg>
+      );
+    case 'simple_mlp':
+      // Neural network with layers
+      return (
+        <svg className={iconClass} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <rect x="8" y="8" width="48" height="48" rx="4" className="stroke-current opacity-20" />
+          {/* Input layer - 3 nodes */}
+          <circle cx="16" cy="20" r="4" className="stroke-current fill-current opacity-30" />
+          <circle cx="16" cy="32" r="4" className="stroke-current fill-current opacity-30" />
+          <circle cx="16" cy="44" r="4" className="stroke-current fill-current opacity-30" />
+          {/* Hidden layer - 4 nodes */}
+          <circle cx="32" cy="16" r="4" className="stroke-current fill-current opacity-50" />
+          <circle cx="32" cy="26" r="4" className="stroke-current fill-current opacity-50" />
+          <circle cx="32" cy="38" r="4" className="stroke-current fill-current opacity-50" />
+          <circle cx="32" cy="48" r="4" className="stroke-current fill-current opacity-50" />
+          {/* Output layer - 2 nodes */}
+          <circle cx="48" cy="26" r="4" className="stroke-current fill-current opacity-70" />
+          <circle cx="48" cy="38" r="4" className="stroke-current fill-current opacity-70" />
+          {/* Connections - input to hidden */}
+          <line x1="20" y1="20" x2="28" y2="16" className="stroke-current opacity-20" />
+          <line x1="20" y1="20" x2="28" y2="26" className="stroke-current opacity-20" />
+          <line x1="20" y1="32" x2="28" y2="26" className="stroke-current opacity-20" />
+          <line x1="20" y1="32" x2="28" y2="38" className="stroke-current opacity-20" />
+          <line x1="20" y1="44" x2="28" y2="38" className="stroke-current opacity-20" />
+          <line x1="20" y1="44" x2="28" y2="48" className="stroke-current opacity-20" />
+          {/* Connections - hidden to output */}
+          <line x1="36" y1="16" x2="44" y2="26" className="stroke-current opacity-20" />
+          <line x1="36" y1="26" x2="44" y2="26" className="stroke-current opacity-20" />
+          <line x1="36" y1="38" x2="44" y2="38" className="stroke-current opacity-20" />
+          <line x1="36" y1="48" x2="44" y2="38" className="stroke-current opacity-20" />
         </svg>
       );
     default:

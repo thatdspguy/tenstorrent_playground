@@ -4,11 +4,19 @@ React-based web interface for the Tenstorrent Simulator Playground.
 
 ## Overview
 
-The frontend provides an interactive UI for:
-- Selecting and configuring simulation models
-- Running single simulations or parameter sweeps
-- Visualizing performance results with charts
-- Comparing simulated vs expected silicon performance
+The frontend provides an interactive UI with two main pages:
+
+### Digit Recognition
+- Draw digits (0-9) on an interactive canvas
+- Run inference using a trained MNIST neural network on the simulator
+- View network architecture with layer activations
+- Track performance statistics (latency, throughput)
+
+### Mathematical Operations
+- Select from 12 TTNN operations (arithmetic, activations, advanced)
+- Configure and run 1D/2D parameter sweeps
+- Visualize results with line charts, surface plots, and heatmaps
+- Configure MLP architecture with visual network editor
 
 ## Quick Start
 
@@ -26,41 +34,46 @@ Open http://localhost:5173 in your browser.
 
 ```
 frontend/
- public/                   # Static assets
- src/
-    api/
-       client.ts        # Axios API client configuration
-       index.ts         # API exports
-       types.ts         # TypeScript type definitions
-    components/
-       DualChartView.tsx       # Side-by-side chart comparison
-       FixedParametersPanel.tsx # Fixed parameter configuration
-       ModelSelector.tsx        # Model selection dropdown
-       ParameterConfig.tsx      # Parameter input controls
-       RangeParameterInput.tsx  # Range slider for sweeps
-       ResultsChart.tsx         # Performance results chart
-       SimulationStatus.tsx     # Job status indicator
-       SweepAxisSelector.tsx    # Sweep axis configuration
-       SweepProgress.tsx        # Sweep progress bar
-       SweepResultsChart.tsx    # Sweep results visualization
-    App.tsx              # Main application component
-    index.css            # Global styles (Tailwind)
-    main.tsx             # Application entry point
- index.html               # HTML template
- package.json             # Dependencies and scripts
- tsconfig.json            # TypeScript configuration
- vite.config.ts           # Vite bundler configuration
- README.md                # This file
+├── public/                   # Static assets
+├── src/
+│   ├── api/
+│   │   ├── client.ts         # Axios API client configuration
+│   │   ├── index.ts          # API exports
+│   │   └── types.ts          # TypeScript type definitions
+│   ├── components/
+│   │   ├── DrawingCanvas.tsx       # Interactive digit drawing canvas
+│   │   ├── DualChartView.tsx       # Side-by-side chart comparison
+│   │   ├── MLPVisualization.tsx    # Configurable MLP architecture editor
+│   │   ├── ModelSelector.tsx       # Operation selection grid (4×3)
+│   │   ├── NetworkVisualization.tsx # Neural network diagram with activations
+│   │   ├── PredictionDisplay.tsx   # Digit prediction results
+│   │   ├── ResultsChart.tsx        # Performance results chart
+│   │   ├── Sidebar.tsx             # Navigation sidebar
+│   │   ├── SimulatorSelector.tsx   # Chip architecture selector
+│   │   ├── SweepAxisSelector.tsx   # Sweep axis configuration
+│   │   ├── SweepProgress.tsx       # Sweep progress bar
+│   │   └── ...
+│   ├── pages/
+│   │   ├── DigitRecognitionPage.tsx      # Digit recognition demo page
+│   │   └── MathematicalOperationsPage.tsx # Parameter sweep page
+│   ├── App.tsx              # Main application with routing
+│   ├── index.css            # Global styles (Tailwind)
+│   └── main.tsx             # Application entry point
+├── index.html               # HTML template
+├── package.json             # Dependencies and scripts
+├── tsconfig.json            # TypeScript configuration
+├── vite.config.ts           # Vite bundler configuration
+└── README.md                # This file
 ```
 
 ## Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server with hot reload |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build locally |
-| `npm run lint` | Run ESLint |
+| Command           | Description                              |
+| ----------------- | ---------------------------------------- |
+| `npm run dev`     | Start development server with hot reload |
+| `npm run build`   | Build for production                     |
+| `npm run preview` | Preview production build locally         |
+| `npm run lint`    | Run ESLint                               |
 
 ## Technology Stack
 
@@ -94,10 +107,27 @@ VITE_API_URL=https://your-api-server.com npm run build
 
 ## Components
 
-### ModelSelector
-Dropdown for selecting which model/benchmark to run. Fetches available models from the API.
+### Pages
 
-### ParameterConfig
+**DigitRecognitionPage** - Main page for digit recognition demo with drawing canvas, network visualization, and prediction display.
+
+**MathematicalOperationsPage** - Parameter sweep page with operation selection, sweep configuration, and result visualization.
+
+### Core Components
+
+**DrawingCanvas** - HTML5 canvas for drawing digits with touch support and clear functionality.
+
+**NetworkVisualization** - SVG-based neural network diagram showing layer sizes and connection flow.
+
+**MLPVisualization** - Configurable MLP architecture editor with dropdowns for layer sizes.
+
+**ModelSelector** - 4×3 grid of operation buttons with custom SVG icons for each TTNN operation.
+
+**PredictionDisplay** - Horizontal bar chart showing prediction probabilities for all 10 digit classes.
+
+**SweepAxisSelector** - Combined control for selecting sweep parameter, range, and scale (linear/log).
+
+### ResultsChart
 Dynamic form that renders parameter inputs based on the selected model's configuration.
 
 ### ResultsChart

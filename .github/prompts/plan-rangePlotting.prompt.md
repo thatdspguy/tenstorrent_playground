@@ -140,7 +140,7 @@ class SweepSimulationRequest(BaseModel):
     matrix_size: int | ParameterRange  # Single value or range
     batch_size: int | ParameterRange   # Single value or range
     chip: str = "wormhole"
-    iterations: int = Field(default=10, ge=1, le=100)
+    iterations: int = Field(default=50, ge=1, le=100)
 
 class SweepDataPoint(BaseModel):
     """A single data point in the sweep results."""

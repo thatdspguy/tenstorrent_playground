@@ -147,3 +147,42 @@ export interface SweepableParameter {
   singleValue: number;
   range: ParameterRange;
 }
+
+// ============================================================================
+// Digit Recognition Types
+// ============================================================================
+
+export interface DigitRecognitionRequest {
+  image_data: string; // Base64 encoded image
+  chip: string;
+}
+
+export interface DigitRecognitionResult {
+  predicted_digit: number;
+  confidence: number;
+  all_confidences: number[];
+  latency_ms: number;
+  layer_activations?: number[][];
+  success: boolean;
+  error?: string;
+}
+
+export interface ModelArchitectureLayer {
+  layer: number;
+  type: string;
+  in: number;
+  out: number;
+  matmul_size?: string;
+  blocks?: number;
+  block_size?: number;
+}
+
+export interface ModelArchitectureInfo {
+  name: string;
+  input_size: number;
+  output_size: number;
+  architecture: ModelArchitectureLayer[];
+  constraint: string;
+  total_parameters: number;
+  weights_file: string;
+}

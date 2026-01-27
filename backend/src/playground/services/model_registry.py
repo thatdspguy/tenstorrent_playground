@@ -1,10 +1,10 @@
 """Model registry for available simulation models.
 
 Models are organized into categories:
-1. Basic Arithmetic: add, subtract, multiply
-2. Mathematical Functions: exp, log, sqrt
-3. Activation Functions: relu, sigmoid, tanh, gelu, silu
-4. Pipelines: chained operations
+1. Basic Arithmetic: add, subtract, multiply, sqrt
+2. Activation Functions: sigmoid, tanh, relu, gelu
+3. Mathematical Functions: exp, log
+4. Matrix Operations: matmul, simple_mlp
 
 Note: Speedup estimates are placeholder values - real measurements
 would require actual silicon hardware.
@@ -33,11 +33,6 @@ ESTIMATED_SPEEDUPS = {
     "tanh_benchmark": 85.0,  # Involves exp
     "gelu_benchmark": 100.0,  # Most complex
     "silu_benchmark": 95.0,  # Involves sigmoid
-    # Pipelines - composite of individual ops
-    "chain_add_relu_mul": 52.0,  # avg(add, relu, mul)
-    "chain_gelu_mul": 78.0,  # weighted avg(gelu, mul)
-    # Legacy name
-    "chain_benchmark": 52.0,
 }
 
 # Default speedup for unknown models
@@ -96,9 +91,15 @@ class ModelRegistry:
         self._register_default_models()
 
     def _register_default_models(self):
-        """Register the default set of models organized by category."""
+        """Register the default set of models organized by category.
 
-        # ==================== BASIC ARITHMETIC ====================
+        Order:
+        Row 1: Add, Subtract, Multiply, Square Root
+        Row 2: Sigmoid, Tanh, ReLU, GELU
+        Row 3: Exponential, Natural Log, Matrix Multiply, Simple 2-Layer MLP
+        """
+
+        # ==================== ROW 1: BASIC ARITHMETIC ====================
 
         self.register(
             ModelInfo(
@@ -142,115 +143,6 @@ class ModelRegistry:
             )
         )
 
-        # ==================== MATRIX OPERATIONS ====================
-
-        self.register(
-            ModelInfo(
-                id="matmul_benchmark",
-                name="Matrix Multiply (A @ B)",
-                description="True matrix multiplication (A @ B). Verifiable: 32x32 ones matrices produce 32.0. The core operation in neural networks.",
-                architecture="Matrix",
-                input_shape=[32, 32],
-                output_shape=[32, 32],
-                estimated_params=0,
-                parameters=[
-                    ModelParameter(
-                        name="matrix_size",
-                        display_name="Matrix Size",
-                        description="Size of square matrices (NxN). Note: Sizes > 64 may be unstable on ttsim.",
-                        type="select",
-                        default=32,
-                        options=["32", "64"],  # Limited to working sizes on ttsim
-                        sweepable=True,
-                    ),
-                    ModelParameter(
-                        name="batch_size",
-                        display_name="Batch Size",
-                        description="Number of matrix multiplications to perform",
-                        type="select",
-                        default=1,
-                        options=["1", "2", "4", "8"],
-                        sweepable=True,
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of matmul operations to perform",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                        sweepable=False,
-                    ),
-                ],
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        self.register(
-            ModelInfo(
-                id="simple_mlp",
-                name="Simple 2-Layer MLP",
-                description="A minimal neural network: Linear(64->64) + ReLU + Linear(64->32). Tests matmul + activation chains.",
-                architecture="Neural Network",
-                input_shape=[32, 64],
-                output_shape=[32, 32],
-                estimated_params=64 * 64 + 64 * 32,  # ~6K params
-                parameters=[
-                    ModelParameter(
-                        name="batch_size",
-                        display_name="Batch Size",
-                        description="Number of samples per forward pass",
-                        type="select",
-                        default=32,
-                        options=["32"],  # Fixed for compatibility
-                        sweepable=False,
-                    ),
-                    ModelParameter(
-                        name="iterations",
-                        display_name="Iterations",
-                        description="Number of forward passes",
-                        type="int",
-                        default=10,
-                        min=1,
-                        max=100,
-                        sweepable=False,
-                    ),
-                ],
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        # ==================== MATHEMATICAL FUNCTIONS ====================
-
-        self.register(
-            ModelInfo(
-                id="exp_benchmark",
-                name="Exponential (exp)",
-                description="Computes e^x element-wise. Verifiable: exp(1) ~ 2.718. Used in softmax, attention mechanisms.",
-                architecture="Math",
-                input_shape=[32, 32],
-                output_shape=[32, 32],
-                estimated_params=0,
-                parameters=_make_standard_params("exp operations"),
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
-        self.register(
-            ModelInfo(
-                id="log_benchmark",
-                name="Natural Log (ln)",
-                description="Computes ln(x) element-wise. Verifiable: ln(2.718) ~ 1.0. Used in cross-entropy loss calculations.",
-                architecture="Math",
-                input_shape=[32, 32],
-                output_shape=[32, 32],
-                estimated_params=0,
-                parameters=_make_standard_params("log operations"),
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
-
         self.register(
             ModelInfo(
                 id="sqrt_benchmark",
@@ -265,21 +157,7 @@ class ModelRegistry:
             )
         )
 
-        # ==================== ACTIVATION FUNCTIONS ====================
-
-        self.register(
-            ModelInfo(
-                id="relu_benchmark",
-                name="ReLU",
-                description="Rectified Linear Unit: max(0, x). The most common activation in neural networks.",
-                architecture="Activation",
-                input_shape=[32, 32],
-                output_shape=[32, 32],
-                estimated_params=0,
-                parameters=_make_standard_params("ReLU operations"),
-                supported_chips=["wormhole", "blackhole"],
-            )
-        )
+        # ==================== ROW 2: ACTIVATION FUNCTIONS ====================
 
         self.register(
             ModelInfo(
@@ -311,6 +189,20 @@ class ModelRegistry:
 
         self.register(
             ModelInfo(
+                id="relu_benchmark",
+                name="ReLU",
+                description="Rectified Linear Unit: max(0, x). The most common activation in neural networks.",
+                architecture="Activation",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=_make_standard_params("ReLU operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
                 id="gelu_benchmark",
                 name="GELU",
                 description="Gaussian Error Linear Unit. Verifiable: gelu(1) ~ 0.841. The activation used in BERT, GPT, transformers.",
@@ -323,32 +215,136 @@ class ModelRegistry:
             )
         )
 
-        # ==================== PIPELINES ====================
+        # ==================== ROW 3: MATH & MATRIX OPERATIONS ====================
 
         self.register(
             ModelInfo(
-                id="chain_benchmark",
-                name="Chain: Add->ReLU->Mul",
-                description="Simulates a layer: (input + bias) -> ReLU -> scale. Common pattern in neural network forward passes.",
-                architecture="Pipeline",
+                id="exp_benchmark",
+                name="Exponential (exp)",
+                description="Computes e^x element-wise. Verifiable: exp(1) ~ 2.718. Used in softmax, attention mechanisms.",
+                architecture="Math",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=_make_standard_params("chain operations"),
+                parameters=_make_standard_params("exp operations"),
                 supported_chips=["wormhole", "blackhole"],
             )
         )
 
         self.register(
             ModelInfo(
-                id="chain_gelu_mul",
-                name="Chain: GELU->Mul",
-                description="Transformer FFN pattern: GELU activation followed by scaling. Used in feed-forward layers of transformers.",
-                architecture="Pipeline",
+                id="log_benchmark",
+                name="Natural Log (ln)",
+                description="Computes ln(x) element-wise. Verifiable: ln(2.718) ~ 1.0. Used in cross-entropy loss calculations.",
+                architecture="Math",
                 input_shape=[32, 32],
                 output_shape=[32, 32],
                 estimated_params=0,
-                parameters=_make_standard_params("chain operations"),
+                parameters=_make_standard_params("log operations"),
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
+                id="matmul_benchmark",
+                name="Matrix Multiply (A @ B)",
+                description="True matrix multiplication (A @ B). Verifiable: 32x32 ones matrices produce 32.0. The core operation in neural networks.",
+                architecture="Matrix",
+                input_shape=[32, 32],
+                output_shape=[32, 32],
+                estimated_params=0,
+                parameters=[
+                    ModelParameter(
+                        name="matrix_size",
+                        display_name="Matrix Size",
+                        description="Size of square matrices (NxN). Maximum 64 for stability.",
+                        type="select",
+                        default=32,
+                        options=["32", "64"],  # Limited to 64 max
+                        sweepable=True,
+                    ),
+                    ModelParameter(
+                        name="batch_size",
+                        display_name="Batch Size",
+                        description="Number of matrix multiplications to perform",
+                        type="select",
+                        default=1,
+                        options=["1", "2", "4", "8"],
+                        sweepable=True,
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of matmul operations to perform",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                        sweepable=False,
+                    ),
+                ],
+                supported_chips=["wormhole", "blackhole"],
+            )
+        )
+
+        self.register(
+            ModelInfo(
+                id="simple_mlp",
+                name="Simple 2-Layer MLP",
+                description="A minimal neural network: Linear(in->hidden) + ReLU + Linear(hidden->out). Tests matmul + activation chains.",
+                architecture="Neural Network",
+                input_shape=[32, 64],
+                output_shape=[32, 32],
+                estimated_params=64 * 64 + 64 * 32,  # ~6K params
+                parameters=[
+                    ModelParameter(
+                        name="input_size",
+                        display_name="Input Size",
+                        description="Number of input features",
+                        type="select",
+                        default=64,
+                        options=["32", "64"],
+                        sweepable=False,
+                    ),
+                    ModelParameter(
+                        name="hidden_size",
+                        display_name="Hidden Size",
+                        description="Number of neurons in hidden layer",
+                        type="select",
+                        default=64,
+                        options=["32", "64"],
+                        sweepable=False,
+                    ),
+                    ModelParameter(
+                        name="output_size",
+                        display_name="Output Size",
+                        description="Number of output features",
+                        type="select",
+                        default=32,
+                        options=["16", "32", "64"],
+                        sweepable=False,
+                    ),
+                    ModelParameter(
+                        name="batch_size",
+                        display_name="Batch Size",
+                        description="Number of samples per forward pass",
+                        type="select",
+                        default=32,
+                        options=["16", "32", "64"],
+                        sweepable=False,
+                    ),
+                    ModelParameter(
+                        name="iterations",
+                        display_name="Iterations",
+                        description="Number of forward passes",
+                        type="int",
+                        default=10,
+                        min=1,
+                        max=100,
+                        sweepable=False,
+                    ),
+                ],
                 supported_chips=["wormhole", "blackhole"],
             )
         )

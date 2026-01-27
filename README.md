@@ -13,22 +13,45 @@ A web-based playground for exploring Tenstorrent AI accelerator capabilities usi
 
 - 🚀 **Real Simulation** — Execute actual TTNN operations on the ttsim hardware simulator
 - 🔀 **Multi-Architecture** — Switch between Wormhole and Blackhole simulators with a single click
+- ✍️ **Digit Recognition** — Draw digits on an interactive canvas and classify them using a trained MNIST neural network
 - 📊 **Performance Metrics** — View latency, throughput, and memory usage with interactive charts
 - 🔄 **Hardware Comparison** — Compare simulated performance against expected silicon results
 - 📈 **Parameter Sweeps** — Run 1D and 2D parameter sweeps with automatic visualization
 - 📉 **Multiple Visualizations** — 2D line charts, 3D surface plots, and heatmaps with themed color schemes
+- 🧠 **Neural Network Models** — Simple 2-layer MLP with configurable architecture visualization
 - 🎨 **Modern UI** — Dark theme with Tenstorrent brand colors and responsive design
-- ⚡ **Multiple Models** — Element-wise operations, activations, and operation chains
+- ⚡ **Multiple Operations** — Element-wise operations, activations, matrix multiplication, and neural networks
 - 💾 **Smart Defaults** — Sensible parameter defaults with settings preserved across model changes
 
 ---
 
-## 🖼️ Preview
+## 📱 Pages
 
-The playground features model selection, parameter sweep configuration, and interactive results:
+### Digit Recognition
 
-![Tenstorrent Playground](assets/tenstorrent_playground.gif
-)
+The Digit Recognition page provides an interactive demo of neural network inference on Tenstorrent hardware:
+
+- **Interactive Canvas** — Draw digits (0-9) directly in your browser
+- **Real-time Inference** — Run the trained MNIST model on the simulator
+- **Network Visualization** — See the neural network architecture with live layer activations
+- **Performance Statistics** — Track average latency and throughput across predictions
+- **Confidence Display** — View prediction probabilities for all 10 digit classes
+
+The model is a simple 2-layer MLP (784 → 128 → 10) trained on MNIST, achieving ~98% accuracy.
+
+![Digit Recognition Demo](assets/digit_recognition_demo.gif)
+
+### Mathematical Operations
+
+The Mathematical Operations page allows you to benchmark and explore TTNN operations:
+
+- **12 Operations** — Arithmetic, activations, and advanced operations organized in a 4×3 grid
+- **Parameter Sweeps** — Run 1D or 2D sweeps across matrix size and batch size
+- **MLP Configuration** — Visual network architecture editor for the Simple 2-Layer MLP
+- **Multiple Visualizations** — Line charts, 3D surface plots, and heatmaps
+- **Chip Selection** — Switch between Wormhole and Blackhole architectures
+
+![Mathematical Operations Demo](assets/mathematical_operations_demo.gif)
 
 ---
 
@@ -347,8 +370,9 @@ tenstorrent_playground/
 │   │   ├── api/routes.py       # REST API endpoints
 │   │   ├── services/
 │   │   │   ├── simulator.py    # WSL2/ttsim integration
-│   │   │   ├── model_registry.py
-│   │   │   └── sweep_service.py
+│   │   │   ├── model_registry.py  # TTNN operation definitions
+│   │   │   ├── sweep_service.py   # Parameter sweep execution
+│   │   │   └── digit_recognition.py  # MNIST model & inference
 │   │   ├── models/schemas.py   # Pydantic schemas
 │   │   └── config.py           # Configuration
 │   ├── pyproject.toml
@@ -356,9 +380,17 @@ tenstorrent_playground/
 │   └── README.md
 ├── frontend/                   # React + Vite frontend
 │   ├── src/
-│   │   ├── components/         # UI components
+│   │   ├── components/         # Reusable UI components
+│   │   │   ├── DrawingCanvas.tsx   # Interactive digit canvas
+│   │   │   ├── ModelSelector.tsx   # Operation selection grid
+│   │   │   ├── NetworkVisualization.tsx  # Neural network diagram
+│   │   │   ├── MLPVisualization.tsx  # Configurable MLP editor
+│   │   │   └── ...
+│   │   ├── pages/              # Page components
+│   │   │   ├── DigitRecognitionPage.tsx
+│   │   │   └── MathematicalOperationsPage.tsx
 │   │   ├── api/                # TypeScript API client
-│   │   └── App.tsx
+│   │   └── App.tsx             # Main app with routing
 │   ├── package.json
 │   ├── Dockerfile
 │   └── README.md
@@ -380,17 +412,19 @@ Base URL: `http://localhost:8000`
 
 ### Endpoints
 
-| Endpoint                     | Method | Description                       |
-| ---------------------------- | ------ | --------------------------------- |
-| `/api/health`                | GET    | Health check and simulator status |
-| `/api/models`                | GET    | List available models             |
-| `/api/models/{id}`           | GET    | Get model details                 |
-| `/api/simulate`              | POST   | Run a single simulation           |
-| `/api/simulate/{job_id}`     | GET    | Get simulation status/results     |
-| `/api/jobs`                  | GET    | List recent simulation jobs       |
-| `/api/sweep`                 | POST   | Start a parameter sweep           |
-| `/api/sweep/{job_id}`        | GET    | Get sweep status/results          |
-| `/api/sweep/{job_id}/cancel` | POST   | Cancel a running sweep            |
+| Endpoint                     | Method | Description                        |
+| ---------------------------- | ------ | ---------------------------------- |
+| `/api/health`                | GET    | Health check and simulator status  |
+| `/api/models`                | GET    | List available models              |
+| `/api/models/{id}`           | GET    | Get model details                  |
+| `/api/simulate`              | POST   | Run a single simulation            |
+| `/api/simulate/{job_id}`     | GET    | Get simulation status/results      |
+| `/api/jobs`                  | GET    | List recent simulation jobs        |
+| `/api/sweep`                 | POST   | Start a parameter sweep            |
+| `/api/sweep/{job_id}`        | GET    | Get sweep status/results           |
+| `/api/sweep/{job_id}/cancel` | POST   | Cancel a running sweep             |
+| `/api/digit/predict`         | POST   | Classify a handwritten digit image |
+| `/api/digit/model-info`      | GET    | Get MNIST model architecture info  |
 
 ### Example: Run a Simulation
 
@@ -398,9 +432,20 @@ Base URL: `http://localhost:8000`
 curl -X POST http://localhost:8000/api/simulate \
   -H "Content-Type: application/json" \
   -d '{
-    "model_id": "matmul_benchmark",
-    "iterations": 10,
-    "parameters": {"matrix_size": 512}
+    "model_id": "add_benchmark",
+    "iterations": 50,
+    "parameters": {"matrix_size": 64, "batch_size": 32}
+  }'
+```
+
+### Example: Digit Recognition
+
+```bash
+curl -X POST http://localhost:8000/api/digit/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_data": [0.0, 0.0, ..., 1.0, ...],
+    "chip": "wormhole"
   }'
 ```
 
@@ -412,22 +457,33 @@ When the backend is running, visit:
 
 ---
 
-## 🎛️ Available Models
+## 🎛️ Available Operations
 
-| Model ID             | Category   | Description                         | Parameters                  |
-| -------------------- | ---------- | ----------------------------------- | --------------------------- |
-| `add_benchmark`      | Arithmetic | Element-wise addition (A + B)       | `matrix_size`, `batch_size` |
-| `subtract_benchmark` | Arithmetic | Element-wise subtraction (A - B)    | `matrix_size`, `batch_size` |
-| `multiply_benchmark` | Arithmetic | Element-wise multiplication (A * B) | `matrix_size`, `batch_size` |
-| `exp_benchmark`      | Math       | Exponential function (e^x)          | `matrix_size`, `batch_size` |
-| `log_benchmark`      | Math       | Natural logarithm (ln)              | `matrix_size`, `batch_size` |
-| `sqrt_benchmark`     | Math       | Square root                         | `matrix_size`, `batch_size` |
-| `relu_benchmark`     | Activation | ReLU: max(0, x)                     | `matrix_size`, `batch_size` |
-| `sigmoid_benchmark`  | Activation | Sigmoid: 1/(1+exp(-x))              | `matrix_size`, `batch_size` |
-| `tanh_benchmark`     | Activation | Hyperbolic tangent                  | `matrix_size`, `batch_size` |
-| `gelu_benchmark`     | Activation | Gaussian Error Linear Unit          | `matrix_size`, `batch_size` |
-| `chain_benchmark`    | Pipeline   | Chain: Add → ReLU → Mul             | `matrix_size`, `batch_size` |
-| `chain_gelu_mul`     | Pipeline   | Chain: GELU → Mul (Transformer FFN) | `matrix_size`, `batch_size` |
+The playground supports a variety of TTNN operations organized in three categories:
+
+### Arithmetic Operations
+| Model ID             | Description                         | Parameters                  |
+| -------------------- | ----------------------------------- | --------------------------- |
+| `add_benchmark`      | Element-wise addition (A + B)       | `matrix_size`, `batch_size` |
+| `subtract_benchmark` | Element-wise subtraction (A - B)    | `matrix_size`, `batch_size` |
+| `multiply_benchmark` | Element-wise multiplication (A × B) | `matrix_size`, `batch_size` |
+| `sqrt_benchmark`     | Square root (√x)                    | `matrix_size`, `batch_size` |
+
+### Activation Functions
+| Model ID            | Description                | Parameters                  |
+| ------------------- | -------------------------- | --------------------------- |
+| `sigmoid_benchmark` | Sigmoid: 1/(1+exp(-x))     | `matrix_size`, `batch_size` |
+| `tanh_benchmark`    | Hyperbolic tangent         | `matrix_size`, `batch_size` |
+| `relu_benchmark`    | ReLU: max(0, x)            | `matrix_size`, `batch_size` |
+| `gelu_benchmark`    | Gaussian Error Linear Unit | `matrix_size`, `batch_size` |
+
+### Advanced Operations
+| Model ID           | Description                      | Parameters                                               |
+| ------------------ | -------------------------------- | -------------------------------------------------------- |
+| `exp_benchmark`    | Exponential function (eˣ)        | `matrix_size`, `batch_size`                              |
+| `log_benchmark`    | Natural logarithm (ln)           | `matrix_size`, `batch_size`                              |
+| `matmul_benchmark` | Matrix multiplication (A @ B)    | `matrix_size` (32-64), `batch_size`                      |
+| `simple_mlp`       | 2-layer neural network with ReLU | `input_size`, `hidden_size`, `output_size`, `batch_size` |
 
 ---
 
