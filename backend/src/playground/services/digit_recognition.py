@@ -427,9 +427,141 @@ python3 -c '
 
 
 async def _run_native_inference(config: dict) -> DigitRecognitionResult:
-    """Run inference natively (Linux/Docker) - redirects to WSL."""
-    # Even in native mode, use WSL for ttsim
-    return await _run_wsl_inference(config)
+    """Run inference natively in Linux/Docker environment."""
+    import os
+
+    logger.info("Starting native inference")
+
+    # Get chip and set up environment
+    chip = config.get("chip", "wormhole")
+
+    # Determine paths from environment (Docker) or defaults
+    ttsim_dir = os.environ.get("TT_METAL_HOME", "/opt/tt-metal")
+    soc_descriptor = settings.get_soc_descriptor(chip)
+
+    # Set up SOC descriptor for the selected chip
+    soc_descriptor_src = f"/opt/ttsim/{chip.replace('wormhole', 'wormhole')}_soc_descriptor.yaml"
+    if chip == "blackhole":
+        soc_descriptor_src = "/opt/ttsim/blackhole_soc_descriptor.yaml"
+    else:
+        soc_descriptor_src = "/opt/ttsim/wormhole_soc_descriptor.yaml"
+
+    # Copy appropriate SOC descriptor
+    soc_dest = "/opt/ttsim/soc_descriptor.yaml"
+    if os.path.exists(soc_descriptor_src):
+        import shutil
+
+        shutil.copy(soc_descriptor_src, soc_dest)
+        logger.info(f"Copied SOC descriptor from {soc_descriptor_src}")
+
+    # Set environment for simulator
+    if chip == "blackhole":
+        simulator_path = os.environ.get("TT_METAL_SIMULATOR_BH", "/opt/ttsim/libttsim_bh.so")
+    else:
+        simulator_path = os.environ.get("TT_METAL_SIMULATOR_WH", "/opt/ttsim/libttsim_wh.so")
+
+    logger.info(f"Chip: {chip}, Simulator: {simulator_path}")
+
+    # Serialize config
+    config_json = json.dumps(config)
+
+    # Build environment for subprocess
+    env = os.environ.copy()
+    env["TT_METAL_HOME"] = ttsim_dir
+    env["TT_METAL_SIMULATOR"] = simulator_path
+    env["TT_METAL_SLOW_DISPATCH_MODE"] = "1"
+    env["LOGURU_LEVEL"] = "ERROR"
+    env["TT_METAL_LOGGER_LEVEL"] = "ERROR"
+
+    start_time = time.time()
+
+    try:
+        # Run Python script directly
+        result = await asyncio.create_subprocess_exec(
+            "python3",
+            "-c",
+            MNIST_INFERENCE_SCRIPT,
+            config_json,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+
+        stdout, stderr = await asyncio.wait_for(
+            result.communicate(),
+            timeout=60.0,
+        )
+
+        stdout_text = stdout.decode("utf-8", errors="replace")
+        stderr_text = stderr.decode("utf-8", errors="replace")
+
+        logger.info(f"Native return code: {result.returncode}")
+        logger.info(f"Native stdout length: {len(stdout_text)}")
+        if stderr_text:
+            logger.info(f"Native stderr: {stderr_text[:500]}")
+
+        # Parse results
+        if "###RESULT_START###" in stdout_text and "###RESULT_END###" in stdout_text:
+            result_json = stdout_text.split("###RESULT_START###")[1].split("###RESULT_END###")[0].strip()
+            try:
+                result_data = json.loads(result_json)
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON decode error, attempting to extract first object: {e}")
+                import re
+
+                match = re.search(r'\{.*?"success":\s*(true|false).*?\}', result_json, re.DOTALL)
+                if match:
+                    result_data = json.loads(match.group(0))
+                else:
+                    raise
+
+            logger.info(f"Inference result: success={result_data.get('success')}")
+
+            if result_data["success"]:
+                return DigitRecognitionResult(
+                    predicted_digit=result_data["predicted_digit"],
+                    confidence=result_data["confidence"],
+                    all_confidences=result_data["all_confidences"],
+                    latency_ms=result_data["latency_ms"],
+                    layer_activations=result_data.get("layer_activations"),
+                    success=True,
+                )
+            else:
+                logger.error(f"Inference failed: {result_data.get('error')}")
+                return DigitRecognitionResult(
+                    predicted_digit=-1,
+                    confidence=0.0,
+                    all_confidences=[0.0] * 10,
+                    latency_ms=0.0,
+                    success=False,
+                    error=result_data.get("error", "Unknown error"),
+                )
+        else:
+            logger.error(f"Failed to parse native output. Stdout: {stdout_text[:500]}")
+            return DigitRecognitionResult(
+                predicted_digit=-1,
+                confidence=0.0,
+                all_confidences=[0.0] * 10,
+                latency_ms=0.0,
+                success=False,
+                error=f"Failed to parse output. Stderr: {stderr_text[:500]}",
+            )
+
+    except asyncio.TimeoutError:
+        logger.error("Native inference timed out")
+        return DigitRecognitionResult(
+            predicted_digit=-1,
+            confidence=0.0,
+            all_confidences=[0.0] * 10,
+            latency_ms=0.0,
+            success=False,
+            error="Inference timed out after 60 seconds",
+        )
+    except Exception as e:
+        logger.exception(f"Native inference exception: {e}")
+        return DigitRecognitionResult(
+            predicted_digit=-1, confidence=0.0, all_confidences=[0.0] * 10, latency_ms=0.0, success=False, error=str(e)
+        )
 
 
 def get_model_info() -> dict:
