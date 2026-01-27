@@ -23,6 +23,7 @@ export function DigitRecognitionPage({
   const [result, setResult] = useState<DigitRecognitionResult | null>(null);
   const [modelInfo, setModelInfo] = useState<ModelArchitectureInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inputPixelData, setInputPixelData] = useState<number[] | null>(null);
   
   // Session statistics
   const [totalInferences, setTotalInferences] = useState(0);
@@ -53,9 +54,14 @@ export function DigitRecognitionPage({
   }, [selectedChip]);
 
   // Handle image capture and run inference
-  const handleImageCapture = useCallback(async (imageData: string) => {
+  const handleImageCapture = useCallback(async (imageData: string, pixelData?: number[]) => {
     setIsRunning(true);
     setError(null);
+    
+    // Store pixel data for visualization
+    if (pixelData) {
+      setInputPixelData(pixelData);
+    }
 
     try {
       const response = await apiClient.recognizeDigit({
@@ -159,6 +165,7 @@ export function DigitRecognitionPage({
               modelInfo={modelInfo}
               result={result}
               isLoading={!modelInfo}
+              inputImageData={inputPixelData ?? undefined}
             />
 
             {/* Performance Statistics - matches Prediction height */}

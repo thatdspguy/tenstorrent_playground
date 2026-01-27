@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface DigitCanvasProps {
-  onImageCapture: (imageData: string) => void;
+  onImageCapture: (imageData: string, pixelData?: number[]) => void;
   disabled?: boolean;
   size?: number;
 }
@@ -112,9 +112,17 @@ export function DigitCanvas({ onImageCapture, disabled = false, size = 280 }: Di
     // Draw the original canvas onto the small canvas
     tempCtx.drawImage(canvas, 0, 0, 28, 28);
 
+    // Extract pixel data as normalized values (0-1)
+    const imageDataObj = tempCtx.getImageData(0, 0, 28, 28);
+    const pixelData: number[] = [];
+    for (let i = 0; i < imageDataObj.data.length; i += 4) {
+      // Use grayscale value (R channel since it's black/white)
+      pixelData.push(imageDataObj.data[i] / 255);
+    }
+
     // Get base64 PNG
     const imageData = tempCanvas.toDataURL('image/png');
-    onImageCapture(imageData);
+    onImageCapture(imageData, pixelData);
   }, [onImageCapture]);
 
   return (

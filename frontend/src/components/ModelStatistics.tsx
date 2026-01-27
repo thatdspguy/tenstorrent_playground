@@ -37,7 +37,7 @@ export function ModelStatistics({
     },
     { 
       label: 'Average Throughput', 
-      value: averageThroughput !== null ? averageThroughput.toFixed(0) : '--', 
+      value: averageThroughput !== null ? averageThroughput.toFixed(2) : '--', 
       unit: 'inf/s',
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -5,6 +5,7 @@ interface NetworkVisualizationProps {
   modelInfo: ModelArchitectureInfo | null;
   result?: DigitRecognitionResult | null;
   isLoading?: boolean;
+  inputImageData?: number[]; // 784 pixel values (28x28) normalized 0-1
 }
 
 // Unified layer type for visualization
@@ -20,7 +21,8 @@ interface VisualizationLayer {
 export function NetworkVisualization({ 
   modelInfo, 
   result, 
-  isLoading = false 
+  isLoading = false,
+  inputImageData 
 }: NetworkVisualizationProps) {
   const [selectedLayer, setSelectedLayer] = useState<number | null>(null);
 
@@ -54,6 +56,73 @@ export function NetworkVisualization({
       })),
     ];
   }, [modelInfo]);
+
+  // Render 28x28 input image grid
+  const renderInputImageGrid = () => {
+    if (!inputImageData || inputImageData.length !== 784) {
+      // Fallback to placeholder grid
+      return (
+        <div className="flex flex-col items-center gap-1">
+          <div 
+            className="grid gap-px bg-gray-900 p-0.5 rounded"
+            style={{ gridTemplateColumns: 'repeat(28, 1fr)' }}
+          >
+            {Array.from({ length: 784 }).map((_, i) => (
+              <div
+                key={i}
+                className="w-1.5 h-1.5 bg-gray-800"
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <div 
+          className="grid gap-0 bg-black p-0.5 rounded"
+          style={{ gridTemplateColumns: 'repeat(28, 1fr)' }}
+        >
+          {inputImageData.map((pixel, i) => (
+            <div
+              key={i}
+              className="w-1.5 h-1.5 transition-all duration-300"
+              style={{ backgroundColor: `rgb(${Math.round(pixel * 255)}, ${Math.round(pixel * 255)}, ${Math.round(pixel * 255)})` }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Render output layer as vertical column with digit labels (0-9)
+  const renderOutputColumn = (confidences?: number[], predictedDigit?: number) => {
+    return (
+      <div className="flex flex-col gap-0.5">
+        {Array.from({ length: 10 }).map((_, digit) => {
+          const conf = confidences?.[digit] ?? 0;
+          const intensity = 0.2 + (conf * 0.8);
+          const isPredicted = predictedDigit === digit;
+          
+          return (
+            <div key={digit} className="flex items-center gap-1.5">
+              <div
+                className={`
+                  w-3 h-3 rounded-full transition-all duration-300
+                  ${isPredicted ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''}
+                `}
+                style={{ backgroundColor: `rgba(124, 58, 237, ${intensity})` }}
+              />
+              <span className={`text-[10px] font-mono ${isPredicted ? 'text-green-400 font-bold' : 'text-gray-500'}`}>
+                {digit}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   // Render neuron grid (with output layer confidence brightness)
   const renderNeuronGrid = (count: number, maxDisplay: number = 64, activations?: number[], _layerIdx?: number, isOutput?: boolean, confidences?: number[]) => {
@@ -165,13 +234,16 @@ export function NetworkVisualization({
                   onClick={() => setSelectedLayer(selectedLayer === idx ? null : idx)}
                 >
                   <span className="text-xs text-gray-400 mb-1">{layer.name}</span>
-                  {renderNeuronGrid(
+                  {idx === 0 ? renderInputImageGrid() : isOutput ? renderOutputColumn(
+                    result?.all_confidences,
+                    result?.predicted_digit
+                  ) : renderNeuronGrid(
                     Math.min(layer.size, 64), 
-                    36, 
+                    64, 
                     layerActivations?.[idx - 1], // idx-1 because input has no activations
                     idx,
-                    isOutput,
-                    isOutput ? result?.all_confidences : undefined
+                    false,
+                    undefined
                   )}
                   <span className="text-xs text-tt-purple-light mt-1">{layer.size}</span>
                   {layer.type === 'blocked' && (
